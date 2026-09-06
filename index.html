@@ -548,6 +548,18 @@ const BACKGROUNDS = {
                 tdesc:"+3 when talking your way out of it.", blurb:"You can hold a room. Possibly a crypt."}
 };
 
+// Most inventory is flavor/utility with no combat mechanic — this table is
+// the exception list. Only an item named here can ever do something beyond
+// a generic oracle-resolved "try it and see" (Rules.freeform); the parser
+// and perform() both check the item is actually in the character's
+// inventory before anything happens, same "never invent capability" rule
+// as everywhere else. "throw" items roll to hit like a weapon and deal
+// real damage; "scatter" items have no roll and apply a status instead.
+const ITEM_EFFECTS = {
+  "Oil flask": {kind:"throw",   dmg:"1d6+2"},
+  "Caltrops":  {kind:"scatter"}
+};
+
 /* -------------------------------------------------------------- classes --- */
 const CLASSES = {
   Fighter:{hd:10, prime:"str", ac:16, wpn:{name:"longsword",dmg:"1d8",abil:"str"},
@@ -889,6 +901,30 @@ const Rules = {
     return [{t:"hit", src:a, vs:"mob", r, b, tot, dmg:Math.max(1,dmg), crit:r===20,
              sneak, bonus, adv, lucky, wpn:C.wpn.name}];
   },
+
+  // A thrown item (oil flask, say) rolls to hit exactly like a weapon
+  // attack — DEX-based rather than the character's usual weapon ability,
+  // since it's a throw, not a swing — and reuses the same "hit"/"miss"
+  // event shape attack() produces, so Narrator/apply need no new cases for
+  // the roll itself. It's used up whether or not it connects (thrown items
+  // break); that consumption is its own event so it still happens on a miss.
+  throwItem(a, target, item){
+    const pc=PC(a), eff=ITEM_EFFECTS[item];
+    const r=R.d(20), b=mod(pc.ab.dex)+prof(pc), tot=r+b;
+    const hit = r===20 || (r!==1 && tot>=target.ac);
+    const used=[{t:"itemused", src:a, item}];
+    if(!hit) return used.concat([{t:"miss", src:a, vs:"mob", r, b, tot, ac:target.ac, fumble:r===1, wpn:item}]);
+    const dmg=Math.max(1, R.parse(eff.dmg));
+    return used.concat([{t:"hit", src:a, vs:"mob", r, b, tot, dmg, crit:r===20, wpn:item}]);
+  },
+
+  // No roll — scattering caltrops can't miss. It rattles whatever's in the
+  // room (the same status a bard's cutting words already uses, so
+  // Rules.monsterTurn's disadvantage-next-attack handling needs no changes)
+  // rather than dealing damage outright.
+  scatterCaltrops(a, item){
+    return [{t:"itemused", src:a, item}, {t:"rattle", src:a, n:1}];
+  },
   power(a, target){
     const pc=PC(a), p=pc.power, ev=[];
     if(p.uses<=0) return [{t:"nopower", src:a, name:p.name}];
@@ -955,6 +991,7 @@ const Rules = {
     if(c.ok && room.loot) ev.push({t:"loot", vs:a, what:room.loot});
     if(c.ok && R.d(6)>=4) ev.push({t:"findpotion", vs:a});
     else if(c.fumble) ev.push({t:"noise"});
+    if(c.ok && R.d(6)===6) ev.push({t:"loot", vs:a, what:"Oil flask"});
     return ev;
   },
   lastStand(a){ return Rules.check(a,"con", hasAnc(PC(a),"Relentless")?6:10, true); },
@@ -1027,6 +1064,7 @@ function apply(events){
       case "revive": { const g=PC(e.src), t=PC(e.vs); g.potions--; t.down=false; t.hp=e.amt; break; }
       case "stand": { const p=PC(e.vs); p.hp=Math.max(1,Math.floor(p.hpMax/4)); p.down=false; p.stand=true; break; }
       case "loot": PC(e.vs).inv.push(e.what); break;
+      case "itemused": { const p=PC(e.src); const i=p.inv.indexOf(e.item); if(i>=0) p.inv.splice(i,1); break; }
       case "move": S.at=e.to; break;
       case "searched": S.map[S.at].searched=true; break;
       case "xp": {
@@ -1109,6 +1147,7 @@ const Narrator = {
       case "edge": return `<span class="hit">${N.nm(e.vs)} has the better of the position now — the next strike comes in clean.</span>`;
       case "rage": return `<span class="hurt">${N.nm(e.src)} stops being careful.</span> <span class="hit">Everything hurts more, coming and going.</span>`;
       case "rattle": return `<span class="hit">It loses the thread of what it was doing.</span>`;
+      case "itemused": return null; // silent — the hit/miss/rattle line right alongside it already says what happened
       case "rename": return `<span class="sys">${e.was} is called ${e.name} now.</span>`;
       case "usepower": return `<em>${N.poss(e.src)} ${e.name}.</em>`;
       case "nopower": return `<span class="sys">${N.nm(e.src)} reaches for ${e.name} and finds nothing left.</span>`;
@@ -1249,7 +1288,7 @@ const VERBS = {
   pray:   ["pray","meditate","beseech","worship","supplicate"],
   hide:   ["hide","sneak","conceal","creep","skulk","duck","crouch","shadow"],
   revive: ["revive","rouse","wake","save","rescue","stabilise","stabilize","drag"],
-  use:    ["use","apply","employ","wield","equip","activate"],
+  use:    ["use","apply","employ","wield","equip","activate","throw","toss","hurl","scatter"],
   inv:    ["inventory","items","bag","pack","gear","sheet","stats","character","equipment","carrying"],
   cmds:   ["help","commands","controls"]
 };
@@ -1375,6 +1414,14 @@ function parse(text){
           : ask(`No ${me.power.name.toLowerCase()} left.`, [fighting?["Attack instead","attack"]:["Look around","look"], ORACLE]);
       if(toks.includes("potion")||toks.includes("healing"))
         return me.potions>0 ? ok("potion") : ask("You have no potions left.", [ORACLE]);
+      // dedicated combat items (see ITEM_EFFECTS) take priority over the
+      // generic oracle fallback below — checked against actual inventory,
+      // same "never invent capability" rule as everywhere else in here.
+      const known=me.inv.find(i=>ITEM_EFFECTS[i] && i.toLowerCase().split(/[^a-z]+/).some(w=>w.length>3 && toks.includes(w)));
+      if(known){
+        if(!fighting) return ask(`Nothing here to use ${known.toLowerCase()} on.`, [["Look around","look"], ORACLE]);
+        return {action:"useItem", raw, target:known};
+      }
       const item=me.inv.find(i=>i.toLowerCase().split(/[^a-z]+/).some(w=>w.length>3 && toks.includes(w)));
       if(item) return {action:"freeform", raw, item};
       return {action:"noSuch", raw};
@@ -2358,6 +2405,21 @@ async perform(a, action, arg, target){
       if(S.fight) spent=true;
       break;
 
+    // A specific, mechanically-real item use (see ITEM_EFFECTS) — the item
+    // name rides in on `target`, same slot revive uses for a party index,
+    // just a different type for a different action. Never trusts the
+    // caller: re-checks the item is actually still in inventory and that
+    // its kind matches what perform() knows how to do with it, so a stale
+    // button click (item already thrown last round) or a forged message
+    // from a modified guest client can't do anything.
+    case "useItem": {
+      const pc=PC(a), item=target, eff=item && ITEM_EFFECTS[item];
+      if(!eff || !pc.inv.includes(item)) break;
+      if(eff.kind==="throw" && S.fight){ ev=Rules.throwItem(a, S.fight, item); spent=true; }
+      else if(eff.kind==="scatter" && S.fight){ ev=Rules.scatterCaltrops(a, item); spent=true; }
+      break;
+    }
+
     case "talk": ev=Rules.talk(a, S.fight); spent=true; break;
     case "pray": ev=Rules.pray(a); spent=true; break;
     case "hide": ev=Rules.hide(a, S.fight); spent=true; break;
@@ -2635,6 +2697,15 @@ choices(){
     if(me.power.uses>0 && !(me.power.name==="Second Wind" && me.hp>=me.hpMax))
       add(`<b>${me.power.name}</b> <span style="color:var(--dim)">(${me.power.uses})</span>`, ()=>G.attempt("power"));
     if(me.potions>0)    add(`<b>Drink</b> a potion <span style="color:var(--dim)">(${me.potions})</span>`, ()=>G.act("potion"));
+    // One button per distinct item with a real combat effect currently
+    // carried — counts collapse duplicates (two oil flasks shows one
+    // button with a ×2), same idea as the potion count above.
+    [...new Set(me.inv.filter(i=>ITEM_EFFECTS[i]))].forEach(item=>{
+      const n=me.inv.filter(i=>i===item).length;
+      const verb=ITEM_EFFECTS[item].kind==="throw" ? "Throw" : "Scatter";
+      add(`<b>${verb}</b> ${item.toLowerCase()} <span style="color:var(--dim)">(${n})</span>`,
+        ()=>G.act("useItem", null, item));
+    });
     const down=S.party.map((p,i)=>({p,i})).filter(x=>x.p.down);
     if(down.length && me.potions>0) add(`<b>Help</b> ${down[0].p.name} up`, ()=>G.act("revive",null,down[0].i));
     add(`<b>Hide</b>`, ()=>G.attempt("hide"));
