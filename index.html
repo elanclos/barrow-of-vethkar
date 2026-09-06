@@ -1,0 +1,2844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Barrow of Vethkar</title>
+<style>
+:root{
+  --bg:#14100c; --panel:#1e1812; --line:#3a3026;
+  --ink:#e8dcc4; --dim:#9a8f7c; --gold:#c9a227; --red:#c2564a;
+  --green:#7fa96a; --blue:#7a94c0; --purple:#a07cc0;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+@supports(height:100dvh){ body{height:100dvh} }
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.6 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  display:flex; flex-direction:column;
+}
+button{font-family:inherit}
+.wrap{flex:1; display:flex; min-height:0; max-width:1220px; width:100%; margin:0 auto}
+
+
+/* ---- sidebar ---- */
+#side{width:300px; flex:none; background:var(--panel); border-right:1px solid var(--line);
+  padding:16px; overflow-y:auto}
+
+#side h1{font-size:15px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); margin:0 0 4px}
+.sub{font-size:12px; color:var(--dim); margin-bottom:14px; font-style:italic}
+.stat{display:flex; justify-content:space-between; font-size:14px; padding:3px 0; border-bottom:1px dotted #2e2720}
+.stat b{font-weight:600; color:var(--dim); font-variant:small-caps; letter-spacing:.05em}
+.bar{height:7px; background:#2b241c; border-radius:4px; overflow:hidden; margin:6px 0 12px}
+.bar i{display:block; height:100%; background:linear-gradient(90deg,#8c3a30,#c2564a); transition:width .35s}
+.abils{display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin:10px 0 14px}
+.ab{background:#241d16; border:1px solid var(--line); border-radius:5px; text-align:center; padding:5px 2px}
+.ab s{display:block; text-decoration:none; font-size:10px; color:var(--dim); letter-spacing:.08em}
+.ab b{display:block; font-size:17px}
+.ab u{display:block; text-decoration:none; font-size:11px; color:var(--gold)}
+.sect{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold);
+  margin:18px 0 7px; padding-bottom:4px; border-bottom:1px solid var(--line)}
+.item{font-size:13px; padding:2px 0; color:#cfc2a8}
+.item em{color:var(--dim); font-style:normal; font-size:11px}
+
+/* ---- party ---- */
+.pc{border:1px solid var(--line); border-radius:6px; padding:7px 9px; margin-bottom:6px; background:#241d16}
+.pc.me{border-color:#5c4a24}
+.pc.act{border-color:var(--gold); box-shadow:0 0 0 1px #c9a22733}
+.pc.down{opacity:.5}
+.pc .nm{display:flex; justify-content:space-between; font-size:13px; align-items:baseline}
+.pc .nm b{color:var(--ink); font-weight:600}
+.pc .nm s{text-decoration:none; font-size:10px; color:var(--dim); letter-spacing:.06em; text-transform:uppercase}
+.pc .hb{height:5px; background:#2b241c; border-radius:3px; overflow:hidden; margin-top:5px}
+.pc .hb i{display:block; height:100%; background:linear-gradient(90deg,#8c3a30,#c2564a)}
+.pc.down .hb i{background:#5a5147}
+
+/* ---- main ---- */
+#main{flex:1; display:flex; flex-direction:column; min-width:0; min-height:0}
+#log{flex:1; overflow-y:auto; padding:24px 28px; min-height:0}
+@media(max-width:820px){ #log{padding:18px} }
+#log p{margin:0 0 14px; max-width:66ch}
+.you{color:var(--gold); font-style:italic}
+.you::before{content:"› "}
+.sys{color:var(--dim); font-size:13px; font-style:italic}
+.hit{color:var(--green)} .miss{color:var(--dim)} .hurt{color:var(--red)}
+.orc{color:var(--purple); font-size:14px}
+.who{color:var(--blue); font-weight:600}
+.roll{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; color:var(--dim);
+  background:#241d16; border:1px solid var(--line); border-radius:4px; padding:1px 6px}
+h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.03em;
+  font-variant:small-caps; border-bottom:1px solid var(--line); padding-bottom:6px; max-width:66ch}
+
+/* ---- controls ---- */
+#ctl{flex:none; border-top:1px solid var(--line); background:var(--panel); padding:12px 28px 18px}
+@media(max-width:820px){ #ctl{padding:12px 16px 16px} }
+#turn{font-size:12px; color:var(--dim); margin-bottom:9px; font-style:italic; min-height:18px}
+#turn b{color:var(--gold); font-style:normal}
+#choices{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px}
+.ch{background:#2a2219; color:var(--ink); border:1px solid #4a3d2c; border-radius:6px;
+  padding:9px 15px; font-size:14px; cursor:pointer; transition:.15s; text-align:left}
+.ch:hover{background:#3a2f21; border-color:var(--gold); color:#fff}
+.ch:active{transform:translateY(1px)}
+.ch b{color:var(--gold); font-weight:600}
+.ch.danger{border-color:#5c3029} .ch.danger:hover{border-color:var(--red)}
+#inrow{display:flex; gap:8px}
+#txt{flex:1; background:#120e0a; border:1px solid var(--line); border-radius:6px;
+  color:var(--ink); padding:10px 13px; font-size:16px; font-family:inherit; min-width:0}
+#txt:focus{outline:none; border-color:var(--gold)}
+#txt::placeholder{color:#645b4e; font-style:italic}
+#txt:disabled{opacity:.45}
+#go{background:var(--gold); color:#1a1409; border:none; border-radius:6px; padding:0 20px;
+  font-weight:700; cursor:pointer; font-size:14px}
+#go:hover{background:#e0b52e}
+#go:disabled{background:#4a4033; color:#8a8070; cursor:default}
+
+/* ---- roll gate ---- */
+#choices.gate{display:block}
+.rollgate{display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:#1c150e; border:1px solid #5c4a24; border-radius:8px; padding:12px 16px}
+.rollprompt{font-size:13px; color:var(--dim); font-style:italic}
+.rollprompt b{color:var(--gold); font-style:normal}
+.die{background:#2a2219; border:2px solid var(--gold); color:var(--gold); border-radius:8px;
+  width:52px; height:52px; font-size:26px; cursor:pointer; transition:.15s; flex:none}
+.die:hover{background:#3a2f21; transform:scale(1.06)}
+.die:active{transform:scale(.96)}
+.die:disabled{cursor:default}
+.die.spin{animation:diespin .06s linear infinite}
+@keyframes diespin{0%{transform:rotate(0)}100%{transform:rotate(18deg)}}
+.rollskip{background:none; border:none; color:var(--dim); text-decoration:underline;
+  font-size:12px; cursor:pointer; font-family:inherit}
+.rollskip:hover{color:var(--ink)}
+
+/* ---- topbar ---- */
+#top{flex:none; display:flex; align-items:center; gap:9px; padding:8px 16px; flex-wrap:wrap;
+  background:#100c08; border-bottom:1px solid var(--line); font-size:12px; color:var(--dim)}
+#top .sp{flex:1}
+.tb{background:transparent; border:1px solid var(--line); color:var(--dim); border-radius:5px;
+  padding:4px 11px; font-size:12px; cursor:pointer}
+.tb:hover{color:var(--ink); border-color:var(--gold)}
+.tb.hot{color:var(--gold); border-color:#5c4a24}
+#ai,#room{display:inline-flex; align-items:center; gap:6px}
+#dot{width:7px; height:7px; border-radius:50%; background:#5a5147}
+#dot.on{background:var(--green); box-shadow:0 0 6px var(--green)}
+#dot.busy{background:var(--gold); animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+#code{font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--gold); letter-spacing:.22em;
+  font-size:14px; font-weight:700}
+
+/* ---- chat ---- */
+#chatbox{margin-top:4px}
+#chatlog{height:150px; overflow-y:auto; background:#120e0a; border:1px solid var(--line);
+  border-radius:6px; padding:7px 9px; font-size:13px; margin-bottom:6px}
+#chatlog p{margin:0 0 5px; line-height:1.4}
+#chatlog b{color:var(--blue); font-weight:600}
+#chatlog .cme b{color:var(--gold)}
+#chatrow{display:flex; gap:6px}
+#chattxt{flex:1; background:#120e0a; border:1px solid var(--line); border-radius:5px;
+  color:var(--ink); padding:6px 9px; font-size:16px; font-family:inherit; min-width:0}
+#chattxt:focus{outline:none; border-color:var(--gold)}
+#chatgo{background:#2a2219; color:var(--gold); border:1px solid #4a3d2c; border-radius:5px;
+  padding:0 12px; font-size:12px; cursor:pointer}
+#chatgo:hover{border-color:var(--gold)}
+
+/* ---- avatars & creator ---- */
+.av{vertical-align:middle; flex:none}
+#pcname{display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:.04em}
+#pcname span{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tb.pen{padding:2px 8px; font-size:13px; line-height:1.2}
+.pc .nm{gap:7px; align-items:center}
+.pc .nm b{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+#chatlog p{display:flex; align-items:flex-start; gap:6px; flex-wrap:wrap}
+#mobparty .mp b{display:flex; align-items:center; gap:5px}
+
+.stps{display:flex; gap:5px; margin:0 0 16px; flex-wrap:wrap}
+.stp{background:transparent; border:1px solid var(--line); color:var(--dim); border-radius:5px;
+  padding:5px 10px; font-size:12px; cursor:pointer; min-height:32px}
+.stp.on{color:var(--gold); border-color:#5c4a24; background:#241d16}
+.stp:hover{color:var(--ink)}
+.ch.sel{border-color:var(--gold); background:#3a2f21}
+.ch .dim, .dim{color:var(--dim); font-size:12px}
+.navrow{display:flex; gap:8px; justify-content:space-between; align-items:center; margin-top:16px}
+.navrow .ch.go{margin-left:auto}
+.namerow{display:flex; gap:8px; margin:12px 0}
+.namerow input{flex:1; background:#120e0a; border:1px solid var(--line); border-radius:6px;
+  color:var(--ink); padding:10px 13px; font-size:16px; font-family:inherit; min-width:0}
+.namerow input:focus{outline:none; border-color:var(--gold)}
+.namerow .ch{flex:none; min-width:52px; text-align:center}
+.avprev{display:flex; align-items:center; gap:14px; margin:14px 0; padding:12px;
+  background:#241d16; border:1px solid var(--line); border-radius:8px}
+.emgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(48px,1fr)); gap:6px; margin:12px 0}
+.em{background:#241d16; border:1px solid var(--line); border-radius:7px; padding:5px;
+  cursor:pointer; line-height:0; min-height:46px}
+.em:hover{border-color:#6b5730}
+.em.sel{border-color:var(--gold); background:#3a2f21}
+.colrow{display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 2px}
+.col{width:32px; height:32px; border-radius:50%; border:2px solid transparent; cursor:pointer}
+.col.sel{border-color:var(--ink); box-shadow:0 0 0 2px #000}
+
+/* ---- mobile party strip ---- */
+#mobparty{display:none; flex:none; gap:6px; padding:8px 12px 0; overflow-x:auto}
+#mobparty .mp{flex:1; min-width:72px; background:#241d16; border:1px solid var(--line);
+  border-radius:6px; padding:5px 8px; font-size:11px}
+#mobparty .mp b{display:block; color:var(--ink); font-weight:600; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+#mobparty .mp.me{border-color:#5c4a24}
+#mobparty .mp.act{border-color:var(--gold)}
+#mobparty .mp.down{opacity:.5}
+#mobparty .hb{height:4px; background:#2b241c; border-radius:2px; overflow:hidden; margin-top:4px}
+#mobparty .hb i{display:block; height:100%; background:linear-gradient(90deg,#8c3a30,#c2564a)}
+
+/* ---- phone & small tablet: sidebar becomes a drawer ---- */
+#sheetbtn{display:none}
+#scrim{display:none; position:fixed; inset:0; background:#0a0806aa; z-index:39}
+@media(max-width:820px){
+  .wrap{flex-direction:column}
+  #sheetbtn{display:inline-block}
+  #sheetclose{display:inline-block !important}
+  #mobparty.on{display:flex}
+  #side{
+    position:fixed; top:0; right:0; bottom:0; z-index:40;
+    width:min(340px, 88vw); border-right:none; border-left:1px solid var(--line);
+    transform:translateX(105%); transition:transform .22s ease;
+    box-shadow:-12px 0 40px #000a;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom));
+  }
+  #side.open{transform:translateX(0)}
+  #scrim.on{display:block}
+  #log{padding:14px 16px}
+  #ctl{padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
+  #top{padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right))}
+  .ch{min-height:44px; padding:10px 14px; font-size:15px; flex:1 1 40%}
+  #go{min-height:46px; padding:0 22px}
+  #choices{gap:7px}
+  h2.scene{font-size:17px}
+  #log p{font-size:15px}
+  .tb{padding:6px 10px; min-height:32px}
+}
+@media(max-width:360px){ .ch{flex:1 1 100%} }
+
+/* ---- modal ---- */
+#modal{position:fixed; inset:0; background:#0a0806ee; display:none; align-items:center;
+  justify-content:center; padding:20px; z-index:50}
+#modal.show{display:flex}
+#mbox{background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  max-width:580px; width:100%; max-height:86vh; overflow-y:auto; padding:26px}
+#mbox h3{color:var(--gold); margin:0 0 12px; font-variant:small-caps; letter-spacing:.04em}
+#mbox p{font-size:14px; color:#cfc2a8}
+#mbox code{background:#120e0a; padding:2px 6px; border-radius:3px; font-size:12px; color:var(--gold)}
+#mbox input{background:#120e0a; border:1px solid var(--line); border-radius:5px; color:var(--ink);
+  padding:9px 12px; font-family:ui-monospace,Menlo,monospace; font-size:16px; letter-spacing:.2em;
+  text-transform:uppercase; width:150px}
+.pick{display:grid; gap:8px; margin:14px 0}
+
+/* ---- floating music card ---- */
+/* A real embedded YouTube player, one instance per viewer. This only works
+   because the game is served over a real https:// origin — YouTube's
+   embed needs a genuine Referer/Origin to validate against, which a local
+   file:// copy of this page can never send (that mismatch was the actual
+   cause of the "error 153" this went through before). Each viewer plays
+   the shared track independently with their own play/pause/volume; only
+   *which* track is playing is host-controlled and broadcast. */
+#ytwrap{position:fixed; right:16px; bottom:16px; width:260px; background:var(--panel);
+  border:1px solid var(--line); border-radius:10px; box-shadow:0 6px 24px #0008; z-index:40;
+  overflow:hidden}
+#ytwrap[hidden]{display:none}
+#ythead{display:flex; align-items:center; gap:6px; padding:7px 8px; background:#150f0a;
+  border-bottom:1px solid var(--line); cursor:default}
+#ytlabel{font-size:12px; color:var(--dim); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+#ythead .tb{padding:2px 8px; font-size:12px; line-height:1.4}
+#ytwrap.min #ytbody{display:none}
+#ytwrap.min{width:auto}
+#ytbody{padding:10px; font-size:13px}
+#ytnote{color:var(--dim); font-size:12px; margin-bottom:8px; line-height:1.5}
+#ytnote b{color:var(--ink)}
+#ytplayerbox{width:100%; aspect-ratio:16/9; background:#000; border-radius:6px; overflow:hidden; margin-bottom:8px}
+#ytplayerbox iframe{width:100%; height:100%; display:block; border:0}
+#ytctl{display:flex; align-items:center; gap:8px; margin-bottom:6px}
+#ytplay{padding:5px 10px; font-size:12px; background:var(--gold); color:#1a1409; border:none;
+  border-radius:6px; font-weight:700; cursor:pointer}
+#ytplay:hover{background:#e0b52e}
+#ytvol{flex:1}
+#ytmsg{font-size:11px; color:var(--dim); line-height:1.5; margin-bottom:6px}
+#ytmsg a{color:var(--gold)}
+#ytopen{width:100%; background:var(--gold); color:#1a1409; border:none; border-radius:6px;
+  padding:9px; font-weight:700; cursor:pointer; font-size:13px}
+#ytopen:hover{background:#e0b52e}
+#ytchange{background:none; border:none; color:var(--dim); text-decoration:underline;
+  font-size:11px; cursor:pointer; font-family:inherit; margin-top:4px; padding:0}
+#ytchange:hover{color:var(--ink)}
+@media(max-width:820px){ #ytwrap{right:8px; bottom:8px; width:210px} }
+</style>
+</head>
+<body>
+
+<div id="top">
+  <span id="ai"><span id="dot"></span><span id="aitxt">Narrator: built-in</span></span>
+  <span id="room"></span>
+  <span class="sp"></span>
+  <button class="tb" id="sheetbtn" onclick="G.drawer()">☰ Sheet</button>
+  <button class="tb hot" id="dicebtn" onclick="G.toggleDice()">🎲 Dice Rolls: On</button>
+  <button class="tb hot" id="sfxbtn" onclick="G.toggleSfx()">🔊 Sound: On</button>
+  <button class="tb" id="musicbtn" onclick="Music.open()">🎵 Music</button>
+  <button class="tb" id="mpbtn" onclick="G.multiplayer()">Play with friends</button>
+  <button class="tb" onclick="G.tryOllama(true)">Connect local AI</button>
+  <button class="tb" onclick="G.save()">Save</button>
+  <button class="tb" onclick="document.getElementById('file').click()">Load</button>
+  <button class="tb" onclick="G.help()">Help</button>
+  <input type="file" id="file" hidden accept=".json" onchange="G.load(this)">
+</div>
+
+<div class="wrap">
+  <aside id="side">
+    <button class="tb" id="sheetclose" onclick="G.drawer(false)"
+      style="display:none; float:right; margin:-2px -2px 8px 8px">✕ Close</button>
+    <div id="partybox" style="display:none">
+      <div class="sect" style="margin-top:0">The Party</div>
+      <div id="party"></div>
+    </div>
+    <div id="chatbox" style="display:none">
+      <div class="sect">Table Talk</div>
+      <div id="chatlog"></div>
+      <div id="chatrow">
+        <input id="chattxt" maxlength="300" placeholder="say something to the party" autocomplete="off">
+        <button id="chatgo">Say</button>
+      </div>
+    </div>
+    <h1 id="pcname">—</h1>
+    <div class="sub" id="pcclass">unproven</div>
+    <div class="stat"><b>Hit Points</b><span id="hp">—</span></div>
+    <div class="bar"><i id="hpbar" style="width:100%"></i></div>
+    <div class="stat"><b>Armor Class</b><span id="ac">—</span></div>
+    <div class="stat"><b>Level</b><span id="lvl">—</span></div>
+    <div class="stat"><b>Experience</b><span id="xp">—</span></div>
+    <div class="abils" id="abils"></div>
+    <div class="sect">Inventory</div>
+    <div id="inv"></div>
+    <div class="sect">Journal</div>
+    <div id="quest"></div>
+  </aside>
+
+  <main id="main">
+    <div id="mobparty"></div>
+    <div id="log"></div>
+    <div id="ctl">
+      <div id="turn"></div>
+      <div id="choices"></div>
+      <div id="inrow">
+        <input id="txt" placeholder="…or type what you do" autocomplete="off">
+        <button id="go">Act</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="scrim" onclick="G.drawer(false)"></div>
+<div id="modal"><div id="mbox"></div></div>
+
+<div id="ytwrap" hidden>
+  <div id="ythead">
+    <span id="ytlabel">🎵 table music</span>
+    <button class="tb" id="ytmin" onclick="Music.toggleMin()" title="Collapse">–</button>
+    <button class="tb" id="ytclose" onclick="Music.close()" title="Stop and hide">✕</button>
+  </div>
+  <div id="ytbody">
+    <div id="ytnote"></div>
+    <div id="ytplayerbox"><div id="ytplayer"></div></div>
+    <div id="ytctl" hidden>
+      <button id="ytplay" onclick="Music.toggle()">▶ Play</button>
+      <input id="ytvol" type="range" min="0" max="100" value="40" oninput="Music.setVolume(this.value)">
+    </div>
+    <div id="ytmsg" hidden></div>
+    <button id="ytopen" onclick="Music.openTab()" hidden>▶ Open on YouTube instead</button>
+    <button id="ytchange" onclick="Music.changeTrack()">change link</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================================
+   THE BARROW OF VETHKAR — 1 to 4 players
+
+   ARCHITECTURE
+     input -> Parser : text or button -> structured action
+           -> Rules  : pure functions, dice, DCs -> GameEvent[]
+           -> apply() : the ONLY place state changes
+           -> Narrator: reads LOCKED events, writes prose
+
+   MULTIPLAYER
+     The host runs the rules engine. Guests send intents and receive state plus
+     narration. A guest can edit its own memory all it likes and change nothing,
+     because it never rolls anything — the same property that stops the LLM
+     cheating also stops a player cheating.
+
+   Uses content from the SRD 5.2.1, (c) Wizards of the Coast, CC-BY-4.0.
+============================================================================ */
+
+/* ---------------------------------------------------------------- dice --- */
+const R = {
+  int:(n)=>Math.floor(Math.random()*n),
+  d:(n)=>Math.floor(Math.random()*n)+1,
+  dice(n,s){let t=0;for(let i=0;i<n;i++)t+=R.d(s);return t;},
+  pick:(a)=>a[Math.floor(Math.random()*a.length)],
+  shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=R.int(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;},
+  parse(f){
+    const m=/^(\d+)d(\d+)([+-]\d+)?$/.exec(f);
+    if(!m) return 0;
+    return R.dice(+m[1],+m[2]) + (m[3]?+m[3]:0);
+  }
+};
+
+/* ---------------------------------------------------------------- sfx --- */
+// Everything here is synthesized with the Web Audio API — no sound files to
+// ship, nothing to load, works fully offline. One shared AudioContext is
+// created lazily on first use (browsers refuse to start one before a user
+// gesture) and torn tones/short envelopes stand in for dice, steel and bells.
+const SFX = {
+  on:true, ctx:null,
+  ensure(){
+    if(this.ctx) return this.ctx;
+    try{ this.ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ this.on=false; }
+    return this.ctx;
+  },
+  // one tone: frequency (or an array for a quick arpeggio), duration, shape, gain
+  tone(freq, dur, type, gain){
+    if(!this.on) return;
+    const ctx=this.ensure(); if(!ctx) return;
+    if(ctx.state==="suspended") ctx.resume().catch(()=>{});
+    const t0=ctx.currentTime;
+    const seq=Array.isArray(freq)?freq:[freq];
+    const step=dur/seq.length;
+    seq.forEach((f,i)=>{
+      const osc=ctx.createOscillator(), g=ctx.createGain();
+      osc.type=type||"sine"; osc.frequency.value=f;
+      const t=t0+i*step;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(gain||0.18, t+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+step);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t+step+0.02);
+    });
+  },
+  // a short burst of filtered noise, for dice clatter and misses
+  noise(dur, gain){
+    if(!this.on) return;
+    const ctx=this.ensure(); if(!ctx) return;
+    if(ctx.state==="suspended") ctx.resume().catch(()=>{});
+    const n=Math.floor(ctx.sampleRate*dur);
+    const buf=ctx.createBuffer(1,n,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const filt=ctx.createBiquadFilter(); filt.type="bandpass"; filt.frequency.value=1200;
+    const g=ctx.createGain(); g.gain.value=gain||0.12;
+    src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+    src.start();
+  },
+  diceTick(){ this.noise(0.05, 0.10); },
+  diceLand(){ this.noise(0.09, 0.16); this.tone([340,260], 0.09, "square", 0.08); },
+  hit(crit){ crit ? this.tone([220,440,660], 0.28, "sawtooth", 0.15) : this.tone([300,220], 0.14, "square", 0.14); },
+  miss(){ this.noise(0.12, 0.08); },
+  good(){ this.tone([440,560], 0.12, "sine", 0.11); },
+  bad(){ this.tone([180,120], 0.16, "sawtooth", 0.13); },
+  heal(){ this.tone([392,523,659], 0.32, "sine", 0.12); },
+  potion(){ this.tone([523,659], 0.16, "sine", 0.1); },
+  levelup(){ this.tone([392,523,659,784], 0.55, "triangle", 0.14); },
+  loot(){ this.tone([659,880], 0.16, "sine", 0.1); },
+  down(){ this.tone([220,164,110], 0.5, "sawtooth", 0.14); },
+  victory(){ this.tone([392,523,659,784,1046], 0.9, "triangle", 0.15); },
+  click(){ this.tone(500, 0.05, "square", 0.06); }
+};
+
+/* -------------------------------------------------------------- oracle --- */
+const Oracle = {
+  odds:{certain:5,likely:4,even:3,unlikely:2,remote:1},
+  ask(likelihood="even"){
+    const bonus=(Oracle.odds[likelihood]??3)-3;
+    const r=R.d(6)+bonus;
+    if(r<=0) return {yes:false,text:"No, and worse still —"};
+    if(r===1) return {yes:false,text:"No, and —"};
+    if(r===2) return {yes:false,text:"No."};
+    if(r===3) return {yes:false,text:"No, but —"};
+    if(r===4) return {yes:true, text:"Yes, but —"};
+    if(r===5) return {yes:true, text:"Yes."};
+    if(r===6) return {yes:true, text:"Yes, and —"};
+    return {yes:true,text:"Yes, and remarkably so —"};
+  },
+  twist:()=>R.pick(T.twist)
+};
+
+/* ------------------------------------------------------------- content --- */
+const T = {
+  adj:["damp","soot-black","frost-rimed","root-choked","low and close","cavernous","half-collapsed",
+       "weeping with groundwater","stiflingly warm","silent as held breath","hung with old smoke",
+       "picked clean","strangely warm underfoot"],
+  detail:[
+    "Roots have prised the stones apart overhead.","Old chalk marks ladder one wall — a tally that stops abruptly.",
+    "The floor is thick with fine grey ash.","Someone scratched a warding sigil here, then scratched it out again.",
+    "A draught moves through, carrying the smell of cold iron.","Bones lie swept into the corners, tidy, deliberate.",
+    "Water drips somewhere behind the wall, patient and regular.","The air tastes faintly of copper.",
+    "Frost creeps up the stones in fern-shapes, though the season is wrong for it.",
+    "A rusted iron ring is bolted into the floor, its chain long gone.",
+    "Handprints in soot climb one wall and stop well above head height.",
+    "A cold current runs along the floor like water that forgot to be wet.",
+    "Something has been dragged through the dust, recently, and only one way.",
+    "The carvings here were defaced with great care and no hurry."
+  ],
+  sound:["a slow drip","distant scraping","nothing at all","a low hum you feel in your teeth",
+         "the settle of shifting stone","faint, tuneless humming","a door closing a long way off",
+         "your own heartbeat, louder than it should be"],
+  twist:[
+    "the ground gives underfoot","a light goes out that nobody lit","something moves behind you",
+    "the air turns suddenly, bitterly cold","a name is spoken quietly, and it is yours",
+    "an old wound aches sharply","the way you came looks subtly wrong"
+  ],
+  found:["a handful of tarnished coins","a scrap of oilcloth","a broken arrowhead",
+         "a child's carved wooden bird","a rusted key that fits nothing here",
+         "a signet ring, the crest filed off","a bundle of dry herbs, still fragrant",
+         "half a map of somewhere else"],
+  names:["Aldric","Maera","Corin","Sefa","Roan","Ilva","Bren","Nessa","Tovin","Wren","Hald","Juno",
+         "Peder","Sable","Ottir","Lysa","Garrick","Fen","Mirren","Dace","Oswyn","Rhea","Kel","Tamsin",
+         "Bryn","Alder","Verity","Sorrel","Hux","Marrow"]
+};
+
+/* ------------------------------------------------------------ ancestry --- */
+/* Every trait below is enforced in the rules engine, not just printed. */
+const ANCESTRIES = {
+  Human:      {bump:{prime:1, con:1}, trait:"Versatile",
+               tdesc:"An extra potion, and a little of everything.",
+               blurb:"Short-lived, and inclined to make it count."},
+  Dwarf:      {bump:{con:2}, trait:"Stonecunning",
+               tdesc:"Every blow against you lands for 1 less.",
+               blurb:"Stone is a language, and you were raised speaking it."},
+  Elf:        {bump:{dex:2}, trait:"Keen Senses",
+               tdesc:"+3 when searching a chamber.",
+               blurb:"You have outlived barrows before. This one is young."},
+  Halfling:   {bump:{dex:1, cha:1}, trait:"Lucky",
+               tdesc:"Once per fight, a fumbled swing is taken again.",
+               blurb:"Small, overlooked, and still here."},
+  "Half-Orc": {bump:{str:2}, trait:"Relentless",
+               tdesc:"Far harder to put down for good.",
+               blurb:"You have been counted out before. It did not take."}
+};
+
+/* ---------------------------------------------------------- background --- */
+const BACKGROUNDS = {
+  Soldier:     {skill:"athletics",  item:"Campaign rations", trait:"Hardened",
+                tdesc:"+3 maximum hit points.", blurb:"You have held a line before."},
+  Outlaw:      {skill:"stealth",    item:"Set of lockpicks", trait:"Slippery",
+                tdesc:"+3 when breaking away from a fight.", blurb:"Somebody is still looking for you."},
+  Acolyte:     {skill:"religion",   item:"Prayer beads",     trait:"Devout",
+                tdesc:"Prayers are far likelier to be answered.", blurb:"You were taught what is buried here."},
+  Scholar:     {skill:"arcana",     item:"Field notebook",   trait:"Learned",
+                tdesc:"+3 on anything the oracle settles with wits.", blurb:"You read about this place. It was wrong."},
+  Hunter:      {skill:"perception", item:"Coil of snare wire",trait:"Tracker",
+                tdesc:"+3 when searching a chamber.", blurb:"You follow things that do not wish to be followed."},
+  Entertainer: {skill:"insight",    item:"Battered lute",    trait:"Silver Tongue",
+                tdesc:"+3 when talking your way out of it.", blurb:"You can hold a room. Possibly a crypt."}
+};
+
+/* -------------------------------------------------------------- classes --- */
+const CLASSES = {
+  Fighter:{hd:10, prime:"str", ac:16, wpn:{name:"longsword",dmg:"1d8",abil:"str"},
+    kit:["Chain mail","Longsword","Shield"], pots:3,
+    skill:["athletics","perception"], hpb:11,
+    blurb:"Armour, reach, and the patience to outlast a thing that does not tire.",
+    power:{name:"Second Wind",uses:1,desc:"Regain 1d10+level hit points."}},
+  Rogue:{hd:8, prime:"dex", ac:14, wpn:{name:"shortsword",dmg:"1d6",abil:"dex"},
+    kit:["Leather armour","Shortsword","Caltrops"], pots:3,
+    skill:["stealth","perception","acrobatics"], hpb:11,
+    blurb:"You are rarely where the blow lands, and always where the purse is.",
+    power:{name:"Sneak Attack",uses:99,desc:"Extra 2d6 in the opening round, or any time you strike unseen."}},
+  Cleric:{hd:8, prime:"wis", ac:15, wpn:{name:"mace",dmg:"1d6",abil:"str"},
+    kit:["Scale mail","Mace","Holy symbol"], pots:4,
+    skill:["insight","religion"], hpb:10,
+    blurb:"Something older than the barrow is listening when you speak.",
+    power:{name:"Sacred Flame",uses:4,desc:"2d8+WIS radiant damage, no attack roll needed."}},
+  Wizard:{hd:6, prime:"int", ac:12, wpn:{name:"quarterstaff",dmg:"1d6",abil:"str"},
+    kit:["Robes","Quarterstaff","Spellbook"], pots:3,
+    skill:["arcana","investigation"], hpb:10,
+    blurb:"You know precisely what is buried here, which is the trouble.",
+    power:{name:"Magic Missile",uses:4,desc:"3d4+3+INT force damage. It never misses."}},
+  Ranger:{hd:10, prime:"dex", ac:14, wpn:{name:"longbow",dmg:"1d8",abil:"dex"},
+    kit:["Studded leather","Longbow","Hunting knife"], pots:3,
+    skill:["perception","stealth"], hpb:10,
+    blurb:"You have been in worse country than this and walked out of it.",
+    power:{name:"Hunter's Mark",uses:3,desc:"Mark it, then strike for an extra 2d6."}},
+  Barbarian:{hd:12, prime:"str", ac:13, wpn:{name:"greataxe",dmg:"1d12",abil:"str"},
+    kit:["Hide armour","Greataxe","Trophy belt"], pots:3,
+    skill:["athletics","intimidation"], hpb:8,
+    blurb:"Armour is for people who expect to be hit.",
+    power:{name:"Rage",uses:2,desc:"+2 damage dealt, 2 less taken, until the fight ends."}},
+  Bard:{hd:8, prime:"cha", ac:14, wpn:{name:"rapier",dmg:"1d8",abil:"dex"},
+    kit:["Fine clothes","Rapier","Ink and paper"], pots:3,
+    skill:["insight","persuasion"], hpb:8,
+    blurb:"Every barrow has a story and you intend to be in this one.",
+    power:{name:"Cutting Words",uses:5,desc:"2d6+CHA damage, and its next two swings go wide."}},
+  Paladin:{hd:10, prime:"str", ac:16, wpn:{name:"longsword",dmg:"1d8",abil:"str"},
+    kit:["Plate armour","Longsword","Shield","Oath token"], pots:3,
+    skill:["religion","athletics"], hpb:9,
+    blurb:"You made a promise. This is where it gets tested.",
+    power:{name:"Divine Smite",uses:2,desc:"Strike with an extra 3d8 radiant."}}
+};
+
+/* ------------------------------------------------------------- monsters --- */
+const MONSTERS = {
+  rat:      {name:"Dire Rat",       hp:"2d6",    ac:12, atk:3, dmg:"1d4",   xp:40,  fl:"matted fur and yellow, chisel teeth"},
+  skeleton: {name:"Skeleton",       hp:"2d8+2",  ac:13, atk:4, dmg:"1d6+1", xp:70,  fl:"bone strung on something that isn't sinew"},
+  hound:    {name:"Grave Hound",    hp:"2d8+2",  ac:13, atk:4, dmg:"1d6+1", xp:80,  fl:"lean, and it has not needed to eat in years"},
+  grubs:    {name:"Rot Grub Swarm", hp:"3d8",    ac:12, atk:3, dmg:"1d6",   xp:90,  fl:"a floor that is moving in the wrong direction"},
+  ghoul:    {name:"Barrow Ghoul",   hp:"3d8",    ac:12, atk:4, dmg:"1d6+2", xp:120, fl:"grave-pale, and far too quick"},
+  spider:   {name:"Giant Spider",   hp:"2d8+4",  ac:14, atk:5, dmg:"1d6+2", xp:120, fl:"legs like blackened fingers"},
+  cultist:  {name:"Ashen Cultist",  hp:"3d8",    ac:13, atk:4, dmg:"1d6+1", xp:100, fl:"grey robes, grey skin, grey eyes"},
+  lantern:  {name:"Corpse Lantern", hp:"2d8+2",  ac:14, atk:4, dmg:"1d8",   xp:130, fl:"a light that leads you nowhere good"},
+  whisper:  {name:"The Whisperer",  hp:"3d8+3",  ac:13, atk:5, dmg:"1d6+2", xp:160, fl:"it knows your name and keeps saying it"},
+  shade:    {name:"Cold Shade",     hp:"4d8+4",  ac:13, atk:5, dmg:"1d8+2", xp:200, fl:"a person-shaped absence of light"},
+  wight:    {name:"Barrow Wight",   hp:"4d8+8",  ac:14, atk:5, dmg:"1d8+2", xp:250, fl:"a king's armour on a thing that is not a king"},
+  sentinel: {name:"Stone Sentinel", hp:"4d8+8",  ac:16, atk:5, dmg:"1d8+3", xp:280, fl:"it was carved standing, and it is not standing now"},
+  knight:   {name:"Barrow Knight",  hp:"5d8+10", ac:16, atk:6, dmg:"1d10+2",xp:300, fl:"it salutes you before it comes on"},
+  drowned:  {name:"Drowned Choirboy",hp:"2d8+2", ac:12, atk:4, dmg:"1d6+1", xp:80,  fl:"still dripping, still singing"},
+  eel:      {name:"Chancel Eel",    hp:"3d8",    ac:14, atk:5, dmg:"1d6+2", xp:130, fl:"longer than the doorway it came through"},
+  tidepriest:{name:"Tide Priest",   hp:"4d8+4",  ac:14, atk:5, dmg:"1d8+2", xp:220, fl:"vestments heavy with water that never dries"},
+  brine:    {name:"Brine Revenant", hp:"4d8+8",  ac:15, atk:6, dmg:"1d8+3", xp:290, fl:"salt-crusted, and it remembers drowning"},
+  VETHKAR:  {name:"Vethkar the Interred", hp:"5d8+16", ac:14, atk:6, dmg:"1d10+2", xp:700,
+             fl:"crowned, and awake, and pleased to see you", boss:true},
+  MAERWEN:  {name:"Maerwen the Unebbing", hp:"5d8+18", ac:15, atk:6, dmg:"1d10+2", xp:750,
+             fl:"she has been holding her breath for four hundred years", boss:true}
+};
+
+/* ------------------------------------------------------------ dungeons --- */
+const DUNGEONS = {
+  barrow:{
+    name:"The Barrow of Vethkar", short:"the barrow", goal:"the Sable Crown",
+    hook:"A barrow was opened three villages over, and everything in it walked out. Yours is next, "+
+         "and the only thing anyone agrees on is that the Sable Crown is what wakes them.",
+    task:"Enter the barrow. Find the Sable Crown. Do not be buried with it.",
+    boss:"VETHKAR", prize:"The Sable Crown",
+    tables:{early:["rat","skeleton","hound"], mid:["ghoul","cultist","spider","skeleton","grubs","lantern"],
+            late:["wight","shade","ghoul","sentinel","knight","whisper"]},
+    escape:["shade","ghoul","skeleton","whisper"],
+    vault:{n:"The Crown Vault", f:"A bier of black stone. On it, the Sable Crown. Beside it, its owner."},
+    rooms:[
+      {n:"The Sunken Threshold", f:"Steps descend past the reach of daylight."},
+      {n:"The Ossuary Walk",     f:"Skulls are set into the walls in careful courses, like brick."},
+      {n:"The Weeping Gallery",  f:"Water tracks down carved faces, each worn past recognition."},
+      {n:"The Coin Shrine",      f:"A stone basin, and in it centuries of offerings gone green."},
+      {n:"The Guard Post",       f:"Racks for spears, all of them empty, none of them dusty."},
+      {n:"The Root Cellar",      f:"A dead oak's roots have broken through and made a cage of the room."},
+      {n:"The Chalk Room",       f:"Every surface is covered in the same word, written thousands of times."},
+      {n:"The Drowned Stair",    f:"Black water laps at the third step down and does not ripple."},
+      {n:"The Antechamber",      f:"Two doors, and a floor mosaic of a crowned figure, face chipped away."},
+      {n:"The Long Kiln",        f:"Brick ovens line one wall. Something was fired here, in quantity."},
+      {n:"The Hall of Tallies",  f:"Notched sticks in their hundreds, bundled and stacked to the ceiling."},
+      {n:"The Sleeping Niches",  f:"Alcoves cut for bodies. Most are empty. Most were not always."},
+      {n:"The Cracked Font",     f:"A basin split clean in two, and dry, and stained dark at the seam."},
+      {n:"The Waiting Room",     f:"Stone benches face a door that has no handle on this side."}
+    ]
+  },
+  chancel:{
+    name:"The Drowned Chancel", short:"the chancel", goal:"the Tideglass Reliquary",
+    hook:"When the estuary went out in the winter it did not come back, and the old chancel came up "+
+         "with the mud. The bell has been heard since. Someone is ringing it.",
+    task:"Go down into the chancel. Bring up the Tideglass Reliquary. Do not stop to listen.",
+    boss:"MAERWEN", prize:"The Tideglass Reliquary",
+    tables:{early:["drowned","rat","grubs"], mid:["eel","drowned","lantern","cultist","spider"],
+            late:["tidepriest","brine","shade","eel","whisper","sentinel"]},
+    escape:["brine","tidepriest","drowned","eel"],
+    vault:{n:"The Lady Chapel", f:"Salt water to the ankle, and at the altar the Tideglass Reliquary, lit from inside."},
+    rooms:[
+      {n:"The Tidal Porch",      f:"The doors stand open because the sea took the hinges."},
+      {n:"The Nave",             f:"Pews in rows, all of them facing the wrong way now."},
+      {n:"The Bell Loft",        f:"The rope still hangs. It is wet, and it is swinging."},
+      {n:"The Vestry",           f:"Cupboards of vestments, folded, sodden, and recently disturbed."},
+      {n:"The Font Room",        f:"A font brimful of water that will not drain and will not stale."},
+      {n:"The Crypt Stair",      f:"Steps going down into water of no discernible depth."},
+      {n:"The Cloister Walk",    f:"An arcade open to a sky that is not there any more."},
+      {n:"The Chapter House",    f:"A round room, a round table, and eleven chairs pushed neatly in."},
+      {n:"The Reliquary Passage",f:"Niches for saints. The saints have been taken down and stacked."},
+      {n:"The Choir",            f:"Stalls facing each other across a flooded aisle. The acoustics are perfect."},
+      {n:"The Almonry",          f:"Where the poor were fed. The tables are set. The bowls are full of silt."},
+      {n:"The Sea Gate",         f:"A portcullis of green bronze, raised, and jammed with weed."}
+    ]
+  }
+};
+
+/* -------------------------------------------------------------- avatars --- */
+/* Everything is drawn as inline SVG so the file stays offline and a whole
+   avatar costs two integers over the network. em:-1 means "sigil from name". */
+const AVCOLORS = ["#c9a227","#b4544a","#6f9b5f","#7a94c0","#a07cc0","#c98a44","#5fa5a0","#b56c8a","#8d8f9a","#9a7a4a"];
+const EMBLEMS = [
+  {n:"Chevron",  d:"M14 7 L21 17 L18 17 L14 11 L10 17 L7 17 Z"},
+  {n:"Cross",    d:"M12.5 5h3v6h6v3h-6v9h-3v-9h-6v-3h6z"},
+  {n:"Crescent", d:"M18.5 6a9 9 0 1 0 0 16 7.5 7.5 0 0 1 0-16z"},
+  {n:"Star",     d:"M14 5 L16.2 11.2 L22.8 11.4 L17.6 15.4 L19.4 21.8 L14 18 L8.6 21.8 L10.4 15.4 L5.2 11.4 L11.8 11.2 Z"},
+  {n:"Tower",    d:"M7.5 23V9.5h2V7h2v2.5h2V7h2v2.5h2V7h2v2.5h.5V23z"},
+  {n:"Bolt",     d:"M16.5 3 L8 15h4.2l-1.4 10L20 12h-4.6z"},
+  {n:"Flame",    d:"M14 4c1 5 5 6 5 11a5 5 0 0 1-10 0c0-3 2-4 2-7 1 1 2 2 3 1z"},
+  {n:"Skull",    d:"M14 5a7 7 0 0 0-7 7c0 3 1 4 2 5v3h10v-3c1-1 2-2 2-5a7 7 0 0 0-7-7zm-3 8a1.6 1.6 0 1 1 0-.1zm6 0a1.6 1.6 0 1 1 0-.1z"},
+  {n:"Axe",      d:"M12.4 4h2.2v20h-2.2zM14.8 4.6c5 .7 7.8 3.1 7.8 6.5s-2.8 5.8-7.8 6.5c1.9-2 2.8-4.1 2.8-6.5s-.9-4.5-2.8-6.5z"},
+  {n:"Eye",      d:"M3 14c4-5 18-5 22 0-4 5-18 5-22 0zm11-3a3 3 0 1 0 .1 0z"},
+  {n:"Antlers",  d:"M14 22V13M14 13 8 8M8 8 5 9M8 8 7 4M14 13l6-5M20 8l3 1M20 8l1-4"},
+  {n:"Crown",    d:"M5 10l3 5 6-8 6 8 3-5v11H5z"}
+];
+
+/* --------------------------------------------------------------- state --- */
+let S = null;
+
+const mod  = (score)=>Math.floor((score-10)/2);
+const prof = (pc)=>Math.floor((pc.lvl-1)/4)+2;
+const ME   = ()=> S && S.party ? S.party[S.me] : null;
+const PC   = (i)=> S.party[i];
+// "down" means hp has hit 0 and someone needs to haul them up — it is the
+// only thing that should ever end the game. "offline" means their connection
+// dropped; they are still standing at whatever hp they had, just untended.
+// Both skip a turn, but only "down" (checked against real hp, not this flag)
+// can end the run — conflating the two used to let a disconnect during a
+// fight declare the whole party dead while people still had hit points.
+const conscious = ()=> S.party.map((p,i)=>i).filter(i=>!S.party[i].down && !S.party[i].offline);
+const partyWiped = ()=> S.party.every(p=>p.hp<=0);
+
+function rollAbilities(prime){
+  const rolls=[];
+  for(let i=0;i<6;i++){
+    const r=[R.d(6),R.d(6),R.d(6),R.d(6)].sort((a,b)=>b-a);
+    rolls.push(r[0]+r[1]+r[2]);
+  }
+  rolls.sort((a,b)=>b-a);
+  const keys=["str","dex","con","int","wis","cha"];
+  const out={};
+  out[prime]=rolls.shift();
+  R.shuffle(keys.filter(k=>k!==prime)).forEach((k,i)=>out[k]=rolls[i]);
+  return out;
+}
+
+function newPC(name, cls, anc, bg, av){
+  const C=CLASSES[cls], A=ANCESTRIES[anc], B=BACKGROUNDS[bg];
+  const ab=rollAbilities(C.prime);
+
+  // ancestry bumps; "prime" maps to whatever this class leans on
+  for(const [k,v] of Object.entries(A.bump)){
+    const key = k==="prime" ? C.prime : k;
+    ab[key]=Math.min(20, ab[key]+v);
+  }
+
+  let hp=C.hd + mod(ab.con) + C.hpb;
+  if(B.trait==="Hardened") hp+=3;
+
+  const skills=[...new Set([...C.skill, B.skill])];
+  return {
+    name, cls, anc, bg, lvl:1, xp:0, ab, hp, hpMax:hp,
+    ac: cls==="Rogue" ? 13 + mod(ab.dex) : C.ac,
+    inv:[...C.kit, B.item], potions:C.pots + (A.trait==="Versatile"?1:0),
+    skills, power:{...C.power},
+    av: av || autoAvatar(name),
+    edge:false, down:false, stand:false, rage:0, lucky:true, conn:null, pid:null
+  };
+}
+
+// Trait lookups, so the rules engine never has to know about strings twice.
+const hasAnc = (pc, t) => ANCESTRIES[pc.anc] && ANCESTRIES[pc.anc].trait===t;
+const hasBg  = (pc, t) => BACKGROUNDS[pc.bg] && BACKGROUNDS[pc.bg].trait===t;
+const skilledIn = (pc, s) => (pc.skills||CLASSES[pc.cls].skill).includes(s);
+const primeMod  = (pc) => mod(pc.ab[CLASSES[pc.cls].prime]);
+
+function newWorld(pc, dun){
+  dun = DUNGEONS[dun] ? dun : "barrow";
+  return {
+    v:4, dun, party:[pc], me:0, active:0, acted:[], round:1,
+    at:0, map:makeMap(dun), fight:null,
+    flags:{crown:false, dead:false, won:false, waking:false},
+    journal:[DUNGEONS[dun].task],
+    log:[]
+  };
+}
+
+function makeMap(dun){
+  const D=DUNGEONS[dun];
+  const pool=R.shuffle(D.rooms).slice(0,9);
+  const adjs=R.shuffle(T.adj), dets=R.shuffle(T.detail);
+  return pool.concat([D.vault]).map((r,i)=>({
+    ...r, i, adj:adjs[i%adjs.length], det:dets[i%dets.length],
+    searched:false, cleared:false,
+    mob: i===9 ? D.boss : (i===0 ? null : rollMob(i, dun)),
+    loot: i===9 ? null : (R.d(6)>3 ? R.pick(T.found) : null)
+  }));
+}
+function rollMob(depth, dun){
+  const t=DUNGEONS[dun||(S&&S.dun)||"barrow"].tables;
+  if(R.d(6)<=2) return null;
+  if(depth<=3) return R.pick(t.early);
+  if(depth<=6) return R.pick(t.mid);
+  return R.pick(t.late);
+}
+function spawn(key){
+  const m={...MONSTERS[key]};
+  const n=S ? S.party.length : 1;
+  let hp=Math.max(1,R.parse(m.hp));
+  if(n>1) hp=Math.round(hp*(1+0.85*(n-1)));      // scale to the party
+  m.hp=hp; m.hpMax=hp;
+  m.atks = n>=4 ? 3 : (n>=2 ? 2 : 1);             // and it swings more often
+  m.rattled=0;
+  m.the=(m.boss?"":"The ")+m.name;
+  return m;
+}
+
+/* ------------------------------------------------------- avatar drawing --- */
+function hashStr(s){
+  let h=2166136261;
+  for(let i=0;i<String(s).length;i++){ h^=String(s).charCodeAt(i); h=Math.imul(h,16777619); }
+  return h>>>0;
+}
+// em:-1 => procedural sigil derived from the name. Otherwise an emblem index.
+function autoAvatar(name){
+  const x=hashStr(name);
+  return { em:-1, col:x % AVCOLORS.length, seed:x };
+}
+function avatarSVG(pc, size){
+  size = size || 30;
+  const col = AVCOLORS[(pc.av? pc.av.col:0) % AVCOLORS.length];
+  const em  = pc.av ? pc.av.em : -1;
+  let inner;
+
+  if(em >= 0 && EMBLEMS[em]){
+    const e=EMBLEMS[em];
+    inner = e.n==="Antlers"
+      ? `<path d="${e.d}" fill="none" stroke="${col}" stroke-width="2.1"
+           stroke-linecap="round" stroke-linejoin="round"/>`
+      : `<path d="${e.d}" fill="${col}"/>`;
+  } else {
+    // procedural sigil: wedges + a core, all driven by the name's hash
+    const x = (pc.av && pc.av.seed) || hashStr(pc.name);
+    const arms = 3 + (x % 4);
+    const rot  = (x >> 3) % 60;
+    const inR  = 5 + ((x >> 7) % 4);
+    const wide = 12 + ((x >> 11) % 16);
+    let p="";
+    for(let i=0;i<arms;i++){
+      const ang = rot + i*(360/arms);
+      p += `<g transform="rotate(${ang} 14 14)">
+        <path d="M14 14 L${14 - wide/2.2} 2.5 L${14 + wide/2.2} 2.5 Z" fill="${col}" opacity=".85"/></g>`;
+    }
+    inner = p + `<circle cx="14" cy="14" r="${inR}" fill="none" stroke="${col}" stroke-width="2"/>`;
+  }
+  return `<svg class="av" viewBox="0 0 28 28" width="${size}" height="${size}" aria-hidden="true">
+    <circle cx="14" cy="14" r="13.2" fill="#241d16" stroke="${col}" stroke-width="1.3" opacity=".95"/>
+    ${inner}</svg>`;
+}
+
+/* --------------------------------------------------------------- rules --- */
+/* Pure. Reads state, rolls dice, returns events. Never mutates.
+   `a` is always the index of the acting character.                          */
+const Rules = {
+  check(a, abil, dc, skilled, kind){
+    const pc=PC(a);
+    let b=mod(pc.ab[abil])+(skilled?prof(pc):0);
+    // traits are applied here so every one of them is real, not flavour text
+    if(kind==="search" && hasAnc(pc,"Keen Senses")) b+=3;
+    if(kind==="search" && hasBg(pc,"Tracker")) b+=3;
+    if(kind==="flee"   && hasBg(pc,"Slippery")) b+=3;
+    if(kind==="talk"   && hasBg(pc,"Silver Tongue")) b+=3;
+    if(kind==="pray"   && hasBg(pc,"Devout")) b+=4;
+    if(kind==="oracle" && abil==="int" && hasBg(pc,"Learned")) b+=3;
+    const r=R.d(20), tot=r+b;
+    return {t:"check", abil, dc, r, b, tot, ok:tot>=dc, crit:r===20, fumble:r===1};
+  },
+  attack(a, target, bonusDice){
+    const pc=PC(a), C=CLASSES[pc.cls], ab=C.wpn.abil==="dex"?"dex":"str";
+    const adv=!!pc.edge;
+    let r=adv ? Math.max(R.d(20),R.d(20)) : R.d(20);
+    let lucky=false;
+    if(r===1 && hasAnc(pc,"Lucky") && pc.lucky){ r=R.d(20); lucky=true; }   // halfling
+    const b=mod(pc.ab[ab])+prof(pc), tot=r+b;
+    const hit = r===20 || (r!==1 && tot>=target.ac);
+    if(!hit) return [{t:"miss", src:a, vs:"mob", r, b, tot, ac:target.ac, fumble:r===1, adv, lucky}];
+    let dmg=R.parse(C.wpn.dmg)+mod(pc.ab[ab]);
+    if(r===20) dmg+=R.parse(C.wpn.dmg);
+    let sneak=0;
+    if(pc.cls==="Rogue" && (S.round===1 || adv)){ sneak=R.dice(2,6); dmg+=sneak; }
+    let bonus=0;
+    if(bonusDice){ bonus=R.dice(bonusDice[0], bonusDice[1]); dmg+=bonus; }
+    if(pc.rage>0) dmg+=2;                                                   // barbarian
+    return [{t:"hit", src:a, vs:"mob", r, b, tot, dmg:Math.max(1,dmg), crit:r===20,
+             sneak, bonus, adv, lucky, wpn:C.wpn.name}];
+  },
+  power(a, target){
+    const pc=PC(a), p=pc.power, ev=[];
+    if(p.uses<=0) return [{t:"nopower", src:a, name:p.name}];
+    ev.push({t:"usepower", src:a, name:p.name});
+    switch(p.name){
+      case "Second Wind":  ev.push({t:"heal", vs:a, amt:R.d(10)+pc.lvl}); break;
+      case "Sneak Attack": ev.push({t:"note", text:"A slip wide, and back in from the blind side."});
+                           return ev.concat(Rules.attack(a, target));
+      case "Sacred Flame":  ev.push({t:"hit", src:a, vs:"mob", dmg:Math.max(1,R.dice(2,8)+primeMod(pc)), auto:true, wpn:"searing light"}); break;
+      case "Magic Missile": ev.push({t:"hit", src:a, vs:"mob", dmg:Math.max(1,R.dice(3,4)+3+primeMod(pc)), auto:true, wpn:"three darts of force"}); break;
+      case "Hunter's Mark": ev.push({t:"note", text:"You pick your spot and stop thinking about anything else."});
+                           return ev.concat(Rules.attack(a, target, [2,6]));
+      case "Divine Smite":  ev.push({t:"note", text:"The oath goes into the swing with you."});
+                           return ev.concat(Rules.attack(a, target, [3,8]));
+      case "Rage":          ev.push({t:"rage", src:a}); break;
+      case "Cutting Words": ev.push({t:"hit", src:a, vs:"mob", dmg:Math.max(1,R.dice(2,6)+primeMod(pc)), auto:true, wpn:"a few well-chosen words"});
+                            ev.push({t:"rattle", src:a, n:2}); break;
+    }
+    return ev;
+  },
+  // mAct marks "the monster has already acted", so the engine never doubles it.
+  monsterTurn(m){
+    const ev=[];
+    for(let k=0;k<(m.atks||1);k++){
+      const live=conscious();
+      if(!live.length) break;
+      const t=R.pick(live), pc=PC(t);
+      const rattled = m.rattled>0;
+      const r = rattled ? Math.min(R.d(20),R.d(20)) : R.d(20);   // bard's cutting words
+      if(rattled) m.rattled--;
+      const tot=r+m.atk;
+      const hit = r===20 || (r!==1 && tot>=pc.ac);
+      if(!hit) ev.push({t:"miss", src:"mob", vs:t, who:m.name, r, b:m.atk, tot, ac:pc.ac, mAct:true, rattled});
+      else{
+        let dmg=R.parse(m.dmg); if(r===20) dmg*=2;
+        if(hasAnc(pc,"Stonecunning")) dmg=Math.max(1,dmg-1);     // dwarf
+        if(pc.rage>0) dmg=Math.max(1,dmg-2);                     // barbarian
+        ev.push({t:"hit", src:"mob", vs:t, who:m.name, r, b:m.atk, tot, dmg, crit:r===20, mAct:true, rattled});
+      }
+    }
+    return ev;
+  },
+  flee(a, m){
+    const c=Rules.check(a,"dex", 10+Math.floor(m.xp/60), PC(a).cls==="Rogue", "flee");
+    return c.ok ? [{t:"fled", src:a, roll:c}] : [{t:"nofled", src:a, roll:c}].concat(Rules.monsterTurn(m));
+  },
+  rest(a){
+    const pc=PC(a);
+    const ev=[{t:"rest", src:a}];
+    // everyone gets the breather, and it always brings you back to a workable
+    // state rather than trickling a few points back.
+    conscious().forEach(i=>{
+      const t=PC(i);
+      ev.push({t:"heal", vs:i, amt:Math.max(2, t.hpMax-t.hp)});   // a real rest
+    });
+    // and a real risk: the longer you lie still down here, the more finds you
+    if(R.d(6) >= (S.party.length>2 ? 4 : 5)) ev.push({t:"wandering"});
+    return ev;
+  },
+  search(a, room){
+    const pc=PC(a);
+    const c=Rules.check(a,"wis",12, skilledIn(pc,"perception")||skilledIn(pc,"investigation"), "search");
+    const ev=[{t:"searched", src:a, roll:c}];
+    if(c.ok && room.loot) ev.push({t:"loot", vs:a, what:room.loot});
+    if(c.ok && R.d(6)>=4) ev.push({t:"findpotion", vs:a});
+    else if(c.fumble) ev.push({t:"noise"});
+    return ev;
+  },
+  lastStand(a){ return Rules.check(a,"con", hasAnc(PC(a),"Relentless")?6:10, true); },
+  talk(a, m){
+    const c=Rules.check(a,"cha", m?13:12, skilledIn(PC(a),"persuasion")||skilledIn(PC(a),"insight"), "talk");
+    if(!m) return [{t:"talkalone", src:a, roll:c}];
+    if(c.crit) return [{t:"talkdown", src:a, roll:c, name:m.the, xp:m.xp, mAct:true}];
+    if(c.ok)   return [{t:"talkhold", src:a, roll:c, name:m.the, mAct:true}];
+    return [{t:"talkfail", src:a, roll:c, name:m.the}].concat(Rules.monsterTurn(m));
+  },
+  pray(a){
+    const pc=PC(a), cleric=pc.cls==="Cleric";
+    const c=Rules.check(a,"wis", cleric?10:14, cleric||skilledIn(pc,"religion"), "pray");
+    if(!c.ok) return [{t:"pray", src:a, roll:c, ok:false}];
+    const ev=[{t:"pray", src:a, roll:c, ok:true}];
+    if(pc.hp<pc.hpMax) ev.push({t:"heal", vs:a, amt:R.d(6)+pc.lvl});
+    else ev.push({t:"edge", vs:a});
+    return ev;
+  },
+  hide(a, m){
+    const c=Rules.check(a,"dex",12, skilledIn(PC(a),"stealth"));
+    if(!m) return [{t:"hidealone", src:a, roll:c}];
+    if(c.ok) return [{t:"hid", src:a, roll:c, mAct:true}];
+    return [{t:"hidefail", src:a, roll:c}].concat(Rules.monsterTurn(m));
+  },
+  revive(a, targetIdx){
+    return [{t:"revive", src:a, vs:targetIdx, amt:R.dice(2,4)+2}];
+  },
+  freeform(a, text, item){
+    const abil=guessAbility(text);
+    const o=Oracle.ask(R.pick(["even","even","likely","unlikely"]));
+    const c=Rules.check(a, abil, 12, false, "oracle");
+    const ev=[{t:"oracle", src:a, question:text, o, roll:c, abil, item}];
+    if(o.yes && c.ok){
+      ev.push(R.pick([
+        {t:"edge", vs:a}, {t:"insight", src:a}, {t:"findpotion", vs:a},
+        {t:"heal", vs:a, amt:R.d(4)+1}, {t:"loot", vs:a, what:R.pick(T.found)}
+      ]));
+    } else if(o.yes && !c.ok){
+      if(!S.fight) ev.push(R.pick([{t:"noise"},{t:"scrape", vs:a, dmg:R.d(4)}]));
+    } else if(!o.yes && !c.ok){
+      if(!S.fight) ev.push(R.pick([{t:"scrape", vs:a, dmg:R.d(6)},{t:"noise"}]));
+    }
+    return ev;
+  }
+};
+
+/* -------------------------------------------------------------- events --- */
+function apply(events){
+  for(const e of events){
+    switch(e.t){
+      case "hit":
+        if(e.vs==="mob"){
+          if(typeof e.src==="number") PC(e.src).edge=false;
+          if(S.fight){ S.fight.hp=Math.max(0,S.fight.hp-e.dmg); if(S.fight.hp===0) e.killed=true; }
+        } else { hurt(e.vs, e.dmg); }
+        if(e.lucky && typeof e.src==="number") PC(e.src).lucky=false;
+        break;
+      case "miss": if(typeof e.src==="number"){ PC(e.src).edge=false; if(e.lucky) PC(e.src).lucky=false; } break;
+      case "scrape": hurt(e.vs, e.dmg); break;
+      case "heal": { const p=PC(e.vs); p.hp=Math.min(p.hpMax, p.hp+e.amt); break; }
+      case "edge": PC(e.vs).edge=true; break;
+      case "rage": PC(e.src).rage=1; break;
+      case "rattle": if(S.fight) S.fight.rattled=(S.fight.rattled||0)+(e.n||1); break;
+      case "rename": PC(e.vs).name=e.name; break;
+      case "avatar": PC(e.vs).av={...PC(e.vs).av, em:e.em, col:e.col}; break;
+      case "usepower": PC(e.src).power.uses--; break;
+      case "potion": { const p=PC(e.src); p.potions--; p.hp=Math.min(p.hpMax,p.hp+e.amt); break; }
+      case "findpotion": PC(e.vs).potions++; break;
+      case "revive": { const g=PC(e.src), t=PC(e.vs); g.potions--; t.down=false; t.hp=e.amt; break; }
+      case "stand": { const p=PC(e.vs); p.hp=Math.max(1,Math.floor(p.hpMax/4)); p.down=false; p.stand=true; break; }
+      case "loot": PC(e.vs).inv.push(e.what); break;
+      case "move": S.at=e.to; break;
+      case "searched": S.map[S.at].searched=true; break;
+      case "xp": {
+        const share=Math.max(1, Math.round(e.amt/S.party.length));
+        e.share=share;
+        S.party.forEach((p,i)=>{ p.xp+=share; levelUp(p,e,i); });
+        break;
+      }
+      case "talkdown":
+        S.party.forEach((p,i)=>{ p.xp+=Math.max(1,Math.round(e.xp/2/S.party.length)); levelUp(p,e,i); });
+        S.map[S.at].cleared=true; S.fight=null;
+        break;
+      case "crown":
+        S.flags.crown=true; S.flags.waking=true;
+        PC(e.src).inv.push(DUNGEONS[S.dun].prize);
+        S.journal.push(`${DUNGEONS[S.dun].prize} is ours. Now climb out.`);
+        for(let i=1;i<S.map.length-1;i++){
+          const rm=S.map[i]; rm.cleared=false; rm.searched=true;
+          rm.mob = R.d(6)===6 ? R.pick(DUNGEONS[S.dun].escape) : null;
+        }
+        break;
+      case "won": S.flags.won=true; break;
+      case "fled": S.fight=null; break;
+    }
+    S.log.push(e);
+  }
+  if(partyWiped()) S.flags.dead=true;      // party wipe — real hp, not connection state
+  return events;
+}
+
+function hurt(idx, dmg){
+  const p=PC(idx);
+  p.hp=Math.max(0,p.hp-dmg);
+  if(p.hp===0) p.down=true;
+}
+
+function levelUp(pc, e, i){
+  const need=[0,120,320,700,1200,1900];
+  while(pc.lvl<6 && pc.xp>=need[pc.lvl]){
+    pc.lvl++;
+    const gain=Math.max(2, Math.floor(CLASSES[pc.cls].hd/2)+1+mod(pc.ab.con));
+    pc.hpMax+=gain; pc.hp+=gain;
+    pc.power.uses=CLASSES[pc.cls].power.uses;
+    if(i===S.me) e.leveled=pc.lvl;
+    e.levels=(e.levels||[]).concat(`${pc.name} is now level ${pc.lvl}`);
+  }
+}
+
+/* ------------------------------------------------------------ narrator --- */
+const Narrator = {
+  ollama:false, model:null,
+
+  nm(i){ return S.party.length>1 ? `<span class="who">${PC(i).name}</span>` : "You"; },
+  nmL(i){ return S.party.length>1 ? `<span class="who">${PC(i).name}</span>` : "you"; },
+  poss(i){ return S.party.length>1 ? `<span class="who">${PC(i).name}</span>'s` : "your"; },
+
+  line(e){
+    const N=Narrator, RL=(x)=>`<span class="roll">${x}</span>`;
+    switch(e.t){
+      case "hit":
+        if(e.vs!=="mob"){
+          const pc=PC(e.vs);
+          return `<span class="hurt">${e.who} ${e.crit?"catches":"connects with"} ${N.nmL(e.vs)}</span> — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac}`)} — <b>${e.dmg}</b> damage${pc.hp===0?` — <span class="hurt">and ${pc.name} goes down.</span>`:"."}`;
+        }
+        return `<span class="hit">${N.poss(e.src)} ${e.wpn} lands${e.crit?" — a clean, ugly hit":""}${e.adv?" (from the blind side)":""}${e.sneak?` (+${e.sneak} blind side)`:""}${e.bonus?` (+${e.bonus})`:""}${e.lucky?` <em>— second look</em>`:""}</span>${e.auto?"":` — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac||(S.fight&&S.fight.ac)||"—"}`)}`} — <b>${e.dmg}</b> damage.`;
+      case "miss":
+        if(e.src==="mob") return `<span class="miss">${e.who} comes at ${N.nmL(e.vs)}${e.rattled?", still off its stride,":""} and finds only armour</span> — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac}`)}.`;
+        return `<span class="miss">${N.nm(e.src)} swings wide${e.fumble?" and nearly goes over":""}${e.lucky?", even given a second look,":""}</span> — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac}`)}.`;
+      case "heal": return `<span class="hit">${N.nm(e.vs)} steadies. <b>+${e.amt}</b> hit points.</span>`;
+      case "scrape": return `<span class="hurt">It goes wrong on ${N.nmL(e.vs)}. <b>${e.dmg}</b> damage.</span>`;
+      case "potion": return `${N.nm(e.src)} works a stopper free and drinks. <span class="hit">+${e.amt} hit points.</span>`;
+      case "findpotion": return `<span class="hit">A potion, still sealed, still good.</span>`;
+      case "revive": return `<span class="hit">${N.nm(e.src)} gets a potion into ${PC(e.vs).name} and hauls them up — <b>${e.amt}</b> hit points, and a great deal of swearing.</span>`;
+      case "edge": return `<span class="hit">${N.nm(e.vs)} has the better of the position now — the next strike comes in clean.</span>`;
+      case "rage": return `<span class="hurt">${N.nm(e.src)} stops being careful.</span> <span class="hit">Everything hurts more, coming and going.</span>`;
+      case "rattle": return `<span class="hit">It loses the thread of what it was doing.</span>`;
+      case "rename": return `<span class="sys">${e.was} is called ${e.name} now.</span>`;
+      case "usepower": return `<em>${N.poss(e.src)} ${e.name}.</em>`;
+      case "nopower": return `<span class="sys">${N.nm(e.src)} reaches for ${e.name} and finds nothing left.</span>`;
+      case "note": return e.text;
+      case "searched":
+        return `${N.nm(e.src)} goes over the room properly — ${RL(`WIS ${e.roll.r}+${e.roll.b}=${e.roll.tot} vs DC ${e.roll.dc}`)} — ${e.roll.ok?"and the patience is rewarded.":"and turns up nothing worth the time."}`;
+      case "loot": return `<span class="hit">${N.nm(e.vs)} finds ${e.what}.</span>`;
+      case "noise": return `<span class="hurt">Something goes over with a clatter. The sound travels a long way down here.</span>`;
+      case "rest": return `You wedge yourselves into a corner where nothing can come at your backs, and close your eyes.`;
+      case "wandering": return `<span class="hurt">The rest does not finish.</span>`;
+      case "fled": return `<span class="hit">${N.nm(e.src)} breaks away and the party goes with them</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
+      case "nofled": return `<span class="hurt">${N.nm(e.src)} turns to run and it is already moving</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
+      case "xp": return `<span class="sys">+${e.share||e.amt} experience each.${e.levels?" <b>"+e.levels.join(". ")+".</b>":""}</span>`;
+      case "crown": return `<span class="hit">${DUNGEONS[S.dun].prize} is lighter than it looks, and colder than the room.</span>`;
+      case "stand": return `<span class="hurt">${N.nm(e.vs)} goes down —</span> and then does not. <span class="hit">Something refuses</span> — ${RL(`CON ${e.roll.tot} vs DC ${e.roll.dc}`)} — <b>${PC(e.vs).hp}</b> hit points, and no more reprieves.`;
+      case "insight":
+        return `<span class="hit">${S.fight
+          ? `${N.nm(e.src)} reads it better now. ${S.fight.the} can take perhaps <b>${S.fight.hp}</b> more.`
+          : `${N.nm(e.src)} gets the measure of the place — <b>${Math.max(0,S.map.length-1-S.at)}</b> chamber${S.map.length-2-S.at===0?"":"s"} still to the vault.`}</span>`;
+      case "talkalone": return `<span class="sys">${N.nm(e.src)} speaks, and the barrow takes the sound and keeps it.</span>`;
+      case "talkdown": return `<span class="hit">${N.nm(e.src)} keeps talking</span> — ${RL(`CHA ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hit">and whatever is left in ${e.name.toLowerCase()} decides you are not worth it. It withdraws.</span>`;
+      case "talkhold": return `${N.nm(e.src)} keeps talking — ${RL(`CHA ${e.roll.tot} vs DC ${e.roll.dc}`)} — and ${e.name.toLowerCase()} <span class="hit">hesitates</span>, long enough to cost it the turn.`;
+      case "talkfail": return `<span class="miss">${N.nm(e.src)} starts to speak</span> — ${RL(`CHA ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hurt">and it is not listening.</span>`;
+      case "pray": return e.ok
+        ? `<span class="hit">${N.nm(e.src)} puts a forehead to the cold stone and asks</span> — ${RL(`WIS ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hit">and something older than the barrow inclines toward them.</span>`
+        : `${N.nm(e.src)} asks — ${RL(`WIS ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="sys">and nothing answers. That is usually how it goes.</span>`;
+      case "hidealone": return `<span class="sys">${N.nm(e.src)} presses into the shadow. There is nothing here to hide from.</span>`;
+      case "hid": return `<span class="hit">${N.nm(e.src)} gets out of its eyeline</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hit">and it loses them.</span>`;
+      case "hidefail": return `<span class="miss">${N.nm(e.src)} tries to slip aside</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hurt">and it tracks the whole way.</span>`;
+      case "oracle": {
+        const y=e.o.yes, ok=e.roll.ok;
+        const tail = y &&  ok ? "It works, and cleanly."
+                   : y && !ok ? "It works — but it costs something."
+                   : !y &&  ok ? "It comes to nothing, though nobody loses their nerve."
+                   :             "It comes to nothing, and they are worse off for having tried.";
+        const what = e.item ? ` <span class="sys">(with the ${e.item.toLowerCase()})</span>` : "";
+        return `<span class="orc">${e.o.text}</span> ${tail}${what} <span class="roll">oracle d6 · ${e.abil?e.abil.toUpperCase()+" ":""}${e.roll.tot} vs DC ${e.roll.dc}</span>`;
+      }
+      default: return null;
+    }
+  },
+
+  async render(events, context){
+    const lines=events.map(Narrator.line).filter(Boolean);
+    if(!lines.length) return;
+    const plain=lines.join(" ");
+    if(!Narrator.ollama){ out(plain); return; }
+    dot("busy");
+    const better=await Narrator.ask(plain, context);
+    dot("on");
+    out(better || plain);
+    if(better) out(`<span class="sys">${plain.replace(/<[^>]+>/g,"")}</span>`);
+  },
+
+  async ask(text, context){
+    try{
+      const sys=`You are narrating a grim, restrained fantasy dungeon crawl.
+You will be given the MECHANICAL OUTCOME of a turn. It is already final and true.
+Rewrite it as 2-3 sentences of atmospheric prose. Rules:
+- Never change, soften, or add to the outcome. Damage, hits, misses and finds are fixed.
+- Never invent items, exits, or creatures. Keep every character name exactly as given.
+- Never roll dice or state numbers. No preamble. Prose only.
+Scene: ${context||"the barrow"}.`;
+      const res=await fetch("http://localhost:11434/api/generate",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:Narrator.model, system:sys, stream:false,
+          prompt:text.replace(/<[^>]+>/g,""), options:{temperature:0.8, num_predict:170}})
+      });
+      const j=await res.json();
+      return (j.response||"").trim();
+    }catch(err){
+      Narrator.ollama=false; dot(""); aitxt("Narrator: built-in");
+      return null;
+    }
+  }
+};
+
+/* -------------------------------------------------------------- parser --- */
+/* Four rules, each from a real playtest failure:
+   1. Only the HEAD VERB counts.
+   2. Negation always wins.
+   3. Questions are answered from state, never rolled.
+   4. Never invent capability — "use X" is checked against what you have.     */
+
+const FILLER = new Set(["i","id","i'd","ill","i'll","im","i'm","ive","i've","let","lets","let's",
+  "me","my","we","our","you","try","trying","tries","to","want","wants","wanted","wish","would",
+  "will","like","then","and","so","just","now","please","the","a","an","gonna","going","go",
+  "attempt","attempts","decide","choose","carefully","quietly","slowly","quickly","cautiously",
+  "softly","first","next","maybe","perhaps","really","actually","also","still","again","make",
+  "makes","set","start","begin","over","up","down","at","on","with","some","for"]);
+
+const QUERY_HEAD = new Set(["what","whats","what's","where","wheres","where's","who","whos","who's",
+  "how","hows","how's","why","which","when","do","does","did","can","could","should","am","is",
+  "are","was","were","has","have","tell","explain","remind"]);
+
+const VERBS = {
+  move:   ["move","walk","head","travel","enter","descend","deeper","north","south","east","west",
+           "onward","forward","proceed","continue","advance","press","venture","march","step"],
+  climb:  ["climb"],
+  back:   ["back","retreat","withdraw","return","backward","backwards"],
+  look:   ["look","examine","inspect","observe","view","survey","peer","glance","read","watch","see"],
+  check:  ["check"],
+  search: ["search","loot","ransack","rummage","scour","investigate","explore","dig","sift","comb"],
+  attack: ["attack","hit","strike","fight","kill","stab","swing","slash","charge","engage","shoot",
+           "punch","smash","slay","assault","lunge","thrust","cut","bash","club"],
+  power:  ["cast","channel","invoke","smite","conjure"],
+  potion: ["drink","quaff","sip"],
+  rest:   ["rest","sleep","camp","recover","recuperate","bandage","bind","heal","nap"],
+  flee:   ["flee","run","escape","bolt","sprint"],
+  take:   ["take","grab","get","pick","pocket","steal","claim","wear","don","collect","lift"],
+  listen: ["listen","hear"],
+  wait:   ["wait","pause","hold","linger","stay","brace","ready"],
+  talk:   ["talk","speak","say","shout","yell","call","greet","hail","ask","tell","address",
+           "parley","negotiate","bargain","bribe","threaten","plead","beg","persuade","reason"],
+  pray:   ["pray","meditate","beseech","worship","supplicate"],
+  hide:   ["hide","sneak","conceal","creep","skulk","duck","crouch","shadow"],
+  revive: ["revive","rouse","wake","save","rescue","stabilise","stabilize","drag"],
+  use:    ["use","apply","employ","wield","equip","activate"],
+  inv:    ["inventory","items","bag","pack","gear","sheet","stats","character","equipment","carrying"],
+  cmds:   ["help","commands","controls"]
+};
+
+const VERB_OF = {};
+for (const [cat, ws] of Object.entries(VERBS)) ws.forEach(w => { if(!(w in VERB_OF)) VERB_OF[w]=cat; });
+
+const NOUNS = {
+  pack:  ["pack","bag","inventory","pockets","pocket","belongings","gear","satchel","backpack","equipment","sheet"],
+  crown: ["crown","circlet","diadem","reliquary","tideglass","prize","relic"],
+  out:   ["out","up","upward","upwards","surface","daylight","stairs","steps","exit","outside","sunlight"],
+  room:  ["room","chamber","floor","wall","walls","rubble","debris","corner","corners","bones",
+          "body","bodies","corpse","remains","here","around","ground","stones"]
+};
+const has = (toks, key) => NOUNS[key].some(n => toks.includes(n));
+
+function actionLabel(a){
+  const me=ME();
+  return ({ move:"move on", look:"look around", search:"search the chamber", attack:"attack",
+            potion:"drink a potion", rest:"rest", flee:"flee", take:"take the crown",
+            listen:"listen", inv:"check your gear", wait:"wait", cmds:"commands", talk:"speak to it",
+            pray:"pray", hide:"hide", query:"a question", revive:"help an ally up", noSuch:"—",
+            power:(me?me.power.name:"your ability") })[a] || a;
+}
+
+function guessAbility(t){
+  const s=" "+t.toLowerCase()+" ";
+  if(/\b(lift|shove|push|pull|force|break|smash|heave|pry|bend|carry|throw|drag|kick|wrench|topple|block|barricade)\b/.test(s)) return "str";
+  if(/\b(sneak|slip|dodge|jump|climb|balance|nimble|catch|tumble|hide|dart|weave|snatch|swing)\b/.test(s)) return "dex";
+  if(/\b(endure|resist|brace|withstand|swallow|breath|steady)\b/.test(s)) return "con";
+  if(/\b(magic|arcane|rune|sigil|spell|lore|decipher|recall|study|figure|solve|craft|build|fashion|rig|repair|translate|remember)\b/.test(s)) return "int";
+  if(/\b(listen|smell|sense|notice|spot|watch|feel|pray|meditate|calm|guess|track)\b/.test(s)) return "wis";
+  if(/\b(talk|speak|persuade|threaten|beg|bribe|charm|lie|shout|sing|command|plead|intimidate|distract|taunt)\b/.test(s)) return "cha";
+  return R.pick(["str","dex","int","wis","cha"]);
+}
+
+function answerQuery(toks){
+  const any=(...w)=>w.some(x=>toks.includes(x));
+  const me=ME(), C=CLASSES[me.cls];
+
+  if(any("magic","magical","spell","spells","ability","abilities","power","powers","cast","casting"))
+    return `<span class="sys">${me.name} is a ${me.cls.toLowerCase()}. One trick: <b>${me.power.name}</b> — ${C.power.desc} `+
+           `<b>${me.power.uses}</b> use${me.power.uses===1?"":"s"} left; type <em>cast</em> to spend one. `+
+           `Each class gets exactly one ability.</span>`;
+  if(any("health","hp","hurt","wounded","hitpoints","alive","dying","condition"))
+    return `<span class="sys">${me.hp} of ${me.hpMax} hit points. Armour class ${me.ac}. `+
+           `${me.potions} potion${me.potions===1?"":"s"}.${me.stand?" Your one reprieve is spent.":""}</span>`;
+  if(any("inventory","carrying","pack","bag","items","gear","got","have","carry","holding"))
+    return `<span class="sys">${me.name} carries: ${me.inv.join(", ")}${me.potions?`, and ${me.potions} potion${me.potions===1?"":"s"} of healing`:""}.</span>`;
+  if(any("party","team","who","allies","everyone","others"))
+    return `<span class="sys">${S.party.map(p=>`${p.name} the ${p.cls.toLowerCase()} (${p.down?"down":`${p.hp}/${p.hpMax}`})`).join(" · ")}</span>`;
+  if(any("where","room","chamber","deep","depth","far","place","location","am"))
+    return `<span class="sys">${S.map[S.at].n} — chamber ${S.at+1} of ${S.map.length}. `+
+           `${S.flags.crown?"You are climbing out.":`${S.map.length-1-S.at} between you and the vault.`}</span>`;
+  if(S.fight && any("it","monster","creature","enemy","fighting","that","thing","this"))
+    return `<span class="sys">${S.fight.the} — ${S.fight.fl}. Armour class ${S.fight.ac}. `+
+           `Looks like it can take about ${S.fight.hp} more.</span>`;
+  if(any("do","can","actions","options","possible","allowed","turn"))
+    return `<span class="sys">Anything you like — these are read as commands: `+
+           `<b>go</b>, <b>look</b>, <b>search</b>, <b>attack</b>, <b>cast</b>, <b>drink</b>, <b>rest</b>, `+
+           `<b>flee</b>, <b>hide</b>, <b>talk</b>, <b>pray</b>, <b>revive</b>, <b>wait</b>, <b>listen</b>, <b>inventory</b>. `+
+           `Anything else goes to the oracle, which rolls and has real consequences.</span>`;
+  return `<span class="sys">Nothing here answers that. Ask about your abilities, your health, `+
+         `your gear, the party, where you are${S.fight?", or what you are fighting":""}.</span>`;
+}
+
+function parse(text){
+  const raw=text.trim(), lower=raw.toLowerCase();
+  const toks=lower.replace(/[^a-z0-9' ]/g," ").split(/\s+/).filter(Boolean);
+  if(!toks.length) return null;
+
+  const FREE={action:"freeform", raw};
+  const negated=/\b(don'?t|do ?not|doesn'?t|didn'?t|won'?t|can'?t|cannot|never|no longer|instead of|rather than|without|avoid|refuse|stop)\b/.test(lower);
+
+  if((/\?\s*$/.test(raw) || QUERY_HEAD.has(toks[0])) && !(negated && !/\?\s*$/.test(raw)))
+    return {action:"query", raw};
+  if(negated) return FREE;
+
+  let head=null;
+  for(const w of toks){
+    if(FILLER.has(w)) continue;
+    head=VERB_OF[w]||null;
+    break;
+  }
+  if(head===null && /^\s*go\b/.test(lower))
+    head = has(toks,"out")||toks.includes("back") ? "back" : "move";
+  if(!head) return FREE;
+
+  const me=ME(), fighting=!!S.fight, crown=S.flags.crown, room=S.map[S.at], last=S.map.length-1;
+  const ask=(note,alts)=>({action:"ask", note, alts, raw});
+  const ok=(a)=>({action:a, raw});
+  const ORACLE=["Let the barrow decide","freeform"];
+
+  switch(head){
+    case "inv": case "listen": case "look": case "wait": case "pray":
+      return ok(head);
+
+    // "help" is the docs — unless someone is on the floor and you mean them.
+    case "cmds": {
+      const dn=S.party.map((p,i)=>({p,i})).filter(x=>x.p.down && x.i!==S.me);
+      if(dn.length && (toks.includes("up")||dn.some(x=>toks.includes(x.p.name.toLowerCase()))||
+                       toks.includes("him")||toks.includes("her")||toks.includes("them")))
+        return me.potions>0 ? {action:"revive", raw, target:(dn.find(x=>toks.includes(x.p.name.toLowerCase()))||dn[0]).i}
+                            : ask("You have no potion to give them.", [ORACLE]);
+      return ok("cmds");
+    }
+    case "talk": return ok("talk");
+    case "hide": return ok("hide");
+
+    case "revive": {
+      const down=S.party.map((p,i)=>({p,i})).filter(x=>x.p.down && x.i!==S.me);
+      if(!down.length) return FREE;
+      if(me.potions<=0) return ask("You have no potion to give them.", [ORACLE]);
+      const named=down.find(x=>toks.includes(x.p.name.toLowerCase()));
+      if(named || down.length===1) return {action:"revive", raw, target:(named||down[0]).i};
+      return ask("Help which of them up?", down.map(x=>[x.p.name,"revive:"+x.i]).concat([ORACLE]));
+    }
+
+    case "use": {
+      const pw=me.power.name.toLowerCase().split(/\s+/);
+      if(pw.some(w=>toks.includes(w)) || toks.includes("power") || toks.includes("ability") || toks.includes("spell"))
+        return me.power.uses>0 ? ok("power")
+          : ask(`No ${me.power.name.toLowerCase()} left.`, [fighting?["Attack instead","attack"]:["Look around","look"], ORACLE]);
+      if(toks.includes("potion")||toks.includes("healing"))
+        return me.potions>0 ? ok("potion") : ask("You have no potions left.", [ORACLE]);
+      const item=me.inv.find(i=>i.toLowerCase().split(/[^a-z]+/).some(w=>w.length>3 && toks.includes(w)));
+      if(item) return {action:"freeform", raw, item};
+      return {action:"noSuch", raw};
+    }
+
+    case "check":
+      return has(toks,"pack") ? ok("inv")
+        : ask("Check what?", [["Your gear","inv"],["The chamber","look"], ORACLE]);
+
+    case "search":
+      if(has(toks,"pack")) return ok("inv");
+      if(fighting) return ask("Not while that is looking at you.", [["Attack it","attack"],["Flee","flee"], ORACLE]);
+      if(room.searched) return ask("This chamber has been gone over already.", [["Look again","look"],["Move on","move"], ORACLE]);
+      return ok("search");
+
+    case "attack":
+      if(fighting) return ok("attack");
+      return ask("Nothing here is fighting you.", [["Look around","look"], ORACLE]);
+
+    case "power":
+      if(me.power.uses<=0) return ask(`No ${me.power.name.toLowerCase()} left.`,
+        [fighting?["Attack instead","attack"]:["Look around","look"], ORACLE]);
+      if(me.power.name==="Second Wind" && me.hp>=me.hpMax)
+        return ask("You are unhurt — Second Wind would be thrown away.",
+          [fighting?["Attack instead","attack"]:["Look around","look"], ORACLE]);
+      if(!fighting && me.power.name!=="Second Wind")
+        return ask("Nothing to aim it at.", [["Look around","look"], ORACLE]);
+      return ok("power");
+
+    case "potion":
+      if(me.potions<=0) return ask("You have no potions left.", [ORACLE]);
+      if(me.hp>=me.hpMax) return ask("You are unhurt — no sense wasting it.", [ORACLE]);
+      return ok("potion");
+
+    case "rest":
+      if(fighting) return ask("You will not be resting.", [["Attack it","attack"],["Flee","flee"], ORACLE]);
+      return ok("rest");
+
+    case "flee":
+      if(fighting) return ok("flee");
+      return FREE;
+
+    case "take":
+      if(has(toks,"crown") || (S.at===last && !crown && !fighting)) return ok("take");
+      return FREE;
+
+    case "back":
+      if(fighting) return ask("Break off?", [["Flee","flee"],["Keep fighting","attack"], ORACLE]);
+      if(crown) return ok("move");
+      return ask("There is nothing behind you but the way you came.",
+        [["Press on instead","move"],["Look around","look"], ORACLE]);
+
+    case "climb":
+      if(crown && (has(toks,"out")||toks.includes("back"))) return ok("move");
+      if(has(toks,"out") && !crown) return ask(`Not without ${DUNGEONS[S.dun].goal}.`, [["Press on","move"], ORACLE]);
+      return ask("Climb what?", [["On to the next chamber","move"], ORACLE]);
+
+    case "move":
+      if(fighting) return ask("It is between you and the way on.",
+        [["Attack it","attack"],["Flee","flee"], ORACLE]);
+      if(crown && (toks.includes("deeper")||toks.includes("down")) && !has(toks,"out"))
+        return ask("You have what you came for. Down is the wrong way.",
+          [["Climb toward the surface","move"], ORACLE]);
+      return ok("move");
+  }
+  return FREE;
+}
+
+/* ----------------------------------------------------------------- net --- */
+/* Host-authoritative. Guests send intents; they never roll anything.
+   The transport is pluggable so the protocol can be tested without a network. */
+const Net = {
+  mode:"solo",          // solo | host | guest
+  code:null, peer:null, conns:[], hostConn:null, myIdx:0,
+
+  // Stable identity across reloads. Without this, every rejoin looked like a
+  // brand-new player and the party filled with copies of the same character.
+  pid(){
+    try{
+      let p=localStorage.getItem("barrow-pid");
+      if(!p){ p=Array.from({length:12},()=>"abcdefghjkmnpqrstuvwxyz23456789"[R.int(31)]).join("");
+              localStorage.setItem("barrow-pid", p); }
+      return p;
+    }catch(e){
+      if(!Net._pid) Net._pid=Array.from({length:12},()=>"abcdefghjkmnpqrstuvwxyz23456789"[R.int(31)]).join("");
+      return Net._pid;
+    }
+  },
+
+  transport:{
+    broadcast(msg){ Net.conns.forEach(c=>{ try{ c.send(msg); }catch(e){} }); },
+    toHost(msg){ try{ Net.hostConn && Net.hostConn.send(msg); }catch(e){} },
+    to(id,msg){ const c=Net.conns.find(x=>x.peer===id); if(c){ try{ c.send(msg); }catch(e){} } }
+  },
+
+  /* ---- host side ---- */
+  hostReceive(msg, connId){
+    if(Net.mode!=="host") return;
+    if(msg.t==="join"){
+      // THE DUPLICATE-CHARACTER FIX. A join is an identity claim, not always a
+      // new character. Guests send a stable pid; a reload, a reconnect, or a
+      // double-pressed Join button re-sends it, and the host REATTACHES the
+      // existing character instead of minting another one.
+      if(msg.pid){
+        const back=S.party.findIndex(p=>p.pid===msg.pid);
+        if(back>=0){
+          const pc=PC(back);
+          pc.conn=connId;
+          pc.offline=false;
+          if(pc.down && pc.hp<=0 && !S.fight){ pc.down=false; pc.hp=1; }
+          Net.transport.to(connId,{t:"you", idx:back});
+          // recap first, so it lands above the "finds the way back" line
+          Net.transport.to(connId, {t:"state", S:JSON.parse(JSON.stringify(S)), lines:introLines()});
+          if(Music.url) Net.transport.to(connId, {t:"music", url:Music.url, from:Music.fromName});
+          BUF = Net.mode==="host" ? [] : null;
+          out(`<span class="sys">${pc.name} finds the way back to the party.</span>`);
+          Net.push(); BUF=null;
+          sync(); G.choices();
+          return;
+        }
+      }
+      // same live connection asking twice = one character, not two
+      const dup=S.party.findIndex(p=>p.conn===connId);
+      if(dup>=0){ Net.transport.to(connId,{t:"you", idx:dup}); Net.push(); return; }
+      if(S.party.length>=4){ Net.transport.to(connId,{t:"full"}); return; }
+      const nm=uniqueName(cleanName(msg.name)||R.pick(T.names), -1);
+      const pc=newPC(nm,
+        CLASSES[msg.cls]?msg.cls:"Fighter",
+        ANCESTRIES[msg.anc]?msg.anc:"Human",
+        BACKGROUNDS[msg.bg]?msg.bg:"Soldier",
+        (msg.av && typeof msg.av.col==="number") ? {em:Math.max(-1,Math.min(EMBLEMS.length-1,msg.av.em|0)),
+          col:Math.max(0,Math.min(AVCOLORS.length-1,msg.av.col|0)), seed:hashStr(nm)} : null);
+      pc.conn=connId; pc.pid=msg.pid||null;
+      S.party.push(pc);
+      Net.transport.to(connId,{t:"you", idx:S.party.length-1});
+      // recap first, so it lands above the "comes down the steps" line
+      Net.transport.to(connId, {t:"state", S:JSON.parse(JSON.stringify(S)), lines:introLines()});
+      if(Music.url) Net.transport.to(connId, {t:"music", url:Music.url, from:Music.fromName});
+      BUF = Net.mode==="host" ? [] : null;
+      out(`<span class="sys">${pc.name} the ${pc.cls.toLowerCase()} comes down the steps.</span>`);
+      Net.push(); BUF=null;
+      sync(); G.choices();
+      return;
+    }
+    if(msg.t==="rename" || msg.t==="avatar"){
+      const idx=S.party.findIndex(p=>p.conn===connId);
+      if(idx<0) return;
+      Net.applyIdentity(idx, msg.t, msg);
+      return;
+    }
+    if(msg.t==="chat"){
+      const idx=S.party.findIndex(p=>p.conn===connId);
+      if(idx<0) return;
+      const text=String(msg.text||"").slice(0,300);
+      if(!text.trim()) return;
+      Chat.line(PC(idx).name, text);
+      Net.transport.broadcast({t:"chat", from:PC(idx).name, text});
+      return;
+    }
+    if(msg.t==="intent"){
+      const idx=S.party.findIndex(p=>p.conn===connId);
+      if(idx<0) return;
+      G.perform(idx, msg.action, msg.arg, msg.target);
+    }
+  },
+
+  // The host is the only thing that decides names and badges — same rule as
+  // dice. A guest asks; the host cleans, de-duplicates and broadcasts.
+  applyIdentity(idx, kind, msg){
+    if(Net.mode==="guest") return;
+    const pc=PC(idx); if(!pc) return;
+    if(kind==="rename"){
+      const want=cleanName(msg.name);
+      if(!want) return;
+      const was=pc.name;
+      const name=uniqueName(want, idx);
+      if(name===was) return;
+      const ev=[{t:"rename", vs:idx, name, was}];
+      if(pc.av && pc.av.em===-1) pc.av=autoAvatar(name);   // sigil follows the name
+      BUF = Net.mode==="host" ? [] : null;
+      apply(ev); out(Narrator.line(ev[0]));
+      sync(); G.choices();
+      if(Net.mode==="host"){ Net.push(); BUF=null; }
+      return;
+    }
+    if(kind==="avatar"){
+      const em=Math.max(-1, Math.min(EMBLEMS.length-1, msg.em|0));
+      const col=Math.max(0, Math.min(AVCOLORS.length-1, msg.col|0));
+      BUF = Net.mode==="host" ? [] : null;
+      apply([{t:"avatar", vs:idx, em, col}]);
+      sync();
+      if(Net.mode==="host"){ Net.push(); BUF=null; }
+    }
+  },
+
+  /* ---- guest side ---- */
+  guestReceive(msg){
+    if(msg.t==="you"){ Net.myIdx=msg.idx; return; }
+    if(msg.t==="rename" || msg.t==="avatar"){
+      const idx=S.party.findIndex(p=>p.conn===connId);
+      if(idx<0) return;
+      Net.applyIdentity(idx, msg.t, msg);
+      return;
+    }
+    if(msg.t==="chat"){ Chat.line(msg.from, msg.text); return; }
+    if(msg.t==="music"){ Music.receiveShare(msg.url, msg.from); return; }
+    if(msg.t==="full"){ modal(`<h3>That party is full</h3><p>Four is the limit.</p>
+      <button class="ch" onclick="closeModal()">Close</button>`); return; }
+    if(msg.t==="state"){
+      S=msg.S; S.me=Net.myIdx;
+      (msg.lines||[]).forEach(l => l.k==="h" ? scene(l.html) : out(l.html, true));
+      sync(); G.choices();
+      if(S.flags.dead) G.death(); else if(S.flags.won) G.victory();
+    }
+  },
+
+  // Host broadcasts full state plus whatever prose was produced. Guests are thin
+  // clients: identical state, identical text, no divergence possible.
+  push(){
+    if(Net.mode!=="host") return;
+    const lines=BUF||[];
+    Net.transport.broadcast({t:"state", S:JSON.parse(JSON.stringify(S)), lines});
+  },
+
+  send(action, arg, target){ Net.transport.toHost({t:"intent", action, arg, target}); }
+};
+
+/* ---------------------------------------------------------------- chat --- */
+/* Table talk rides the same connections as the game but never touches game
+   state. Host relays every line so all four screens read identically. */
+const Chat = {
+  show(){ document.getElementById("chatbox").style.display=""; },
+  line(from, text){
+    const log=document.getElementById("chatlog");
+    const p=document.createElement("p");
+    const mine = S && S.party && S.party[S.me] && from===S.party[S.me].name;
+    if(mine) p.className="cme";
+    const who = S && S.party ? S.party.find(x=>x.name===from) : null;
+    p.innerHTML=`${who?avatarSVG(who,16):""}<b>${escHtml(from)}:</b> ${escHtml(text)}`;
+    log.appendChild(p);
+    while(log.children.length>120) log.removeChild(log.firstChild);
+    log.scrollTop=log.scrollHeight;
+  },
+  send(){
+    const t=document.getElementById("chattxt");
+    const text=t.value.trim().slice(0,300);
+    if(!text) return;
+    t.value="";
+    if(Net.mode==="host"){
+      Chat.line(ME().name, text);
+      Net.transport.broadcast({t:"chat", from:ME().name, text});
+    } else if(Net.mode==="guest"){
+      Net.transport.toHost({t:"chat", text});   // host echoes it back to everyone
+    } else {
+      Chat.line(ME()?ME().name:"You", text);    // solo: a place to mutter to yourself
+    }
+  }
+};
+
+/* -------------------------------------------------------------- music --- */
+// Table music as a real embedded YouTube player — one independent instance
+// per viewer. This only works because the game is served from a genuine
+// https:// origin now, not opened as a local file: YouTube's embedded
+// player validates the page's Referer/Origin before it'll play, and a
+// file:// copy of this page can never send one (that mismatch, not any
+// per-video restriction, was the true cause of the "error 153" this went
+// through earlier). The host pastes a link and it's broadcast to every
+// connected guest (and to anyone who joins/reconnects afterward); everyone
+// then plays their own local embed with their own play/pause/volume —
+// *which* track plays is host-controlled, but each person's playback is
+// their own, so there's no network-lag position sync to fight.
+const Music = {
+  url:null, fromName:null, videoId:null, player:null, ready:false, wantPlay:false, usingFallback:false, vol:40,
+
+  init(){
+    let saved=null;
+    try{ saved=JSON.parse(localStorage.getItem("barrow-music")||"null"); }catch(e){ saved=null; }
+    if(saved && saved.url){
+      this.url=saved.url;
+      this.videoId=this.extractId(saved.url);
+      this.vol = saved.vol!=null ? saved.vol : 40;
+      document.getElementById("ytwrap").hidden = !!saved.hidden;
+      document.getElementById("ytwrap").classList.toggle("min", !!saved.min);
+      if(!saved.hidden){ this.render(); this._spawn(); }
+    }
+  },
+
+  extractId(url){
+    // Validates it's a YouTube link AND gives us the bare video ID the
+    // IFrame Player API needs to embed. The raw url (with any
+    // list=/start_radio=/t= params) is what's stored/broadcast/opened, so
+    // playlists and radio mixes still work for "open on YouTube instead".
+    const m=/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{6,15})/.exec(String(url||""));
+    return m ? m[1] : null;
+  },
+
+  open(){
+    if(Net.mode==="guest"){
+      // Guests never paste their own link — they just see and play
+      // whatever the host has shared (or a note that nothing's playing).
+      document.getElementById("ytwrap").hidden=false;
+      document.getElementById("ytwrap").classList.remove("min");
+      this.render();
+      if(this.videoId && !this.player) this._spawn();
+      this._save();
+      return;
+    }
+    if(this.url){
+      document.getElementById("ytwrap").hidden=false;
+      document.getElementById("ytwrap").classList.remove("min");
+      this.render();
+      if(this.videoId && !this.player) this._spawn();
+      this._save();
+      return;
+    }
+    modal(`<h3>Table music</h3>
+      <p>Paste a YouTube link — a D&D ambient track, a lofi loop, whatever the table wants playing
+         underneath. ${Net.mode==="host" ? "It'll be shared with everyone at the table — each person gets their own player with their own volume." : "It plays in your own little player, volume and all."}</p>
+      <div class="namerow">
+        <input id="yturl" placeholder="https://youtube.com/watch?v=…">
+      </div>
+      <div class="navrow">
+        <button class="ch" onclick="closeModal()">Never mind</button>
+        <button class="ch go" onclick="Music.submitURL()"><b>Share</b></button>
+      </div>`);
+  },
+
+  submitURL(){
+    const url=document.getElementById("yturl").value;
+    const id=this.extractId(url);
+    if(!id){ out(`<span class="hurt">That doesn't look like a YouTube link.</span>`); return; }
+    this.url=url;
+    this.videoId=id;
+    this.fromName = ME() ? ME().name : "You";
+    closeModal();
+    document.getElementById("ytwrap").hidden=false;
+    document.getElementById("ytwrap").classList.remove("min");
+    this._save();
+    this.render();
+    this.wantPlay=true;
+    this.clearError();
+    if(this.player) this.player.loadVideoById(id); else this._spawn();
+    if(Net.mode==="host"){
+      Net.transport.broadcast({t:"music", url:this.url, from:this.fromName});
+    }
+  },
+
+  // Called on a guest's screen when the host shares (or a joining/reconnecting
+  // guest is caught up with) a track. Always wins over anything local, since
+  // the host's link is the only one that matters for which track plays.
+  receiveShare(url, from){
+    const id=this.extractId(url);
+    if(!id) return;
+    this.url=url;
+    this.videoId=id;
+    this.fromName=from;
+    document.getElementById("ytwrap").hidden=false;
+    document.getElementById("ytwrap").classList.remove("min");
+    this._save();
+    this.render();
+    this.wantPlay=false;   // don't force-autoplay on someone who didn't ask — they press play
+    this.clearError();
+    if(this.player) this.player.loadVideoById(id); else this._spawn();
+  },
+
+  render(){
+    const note=document.getElementById("ytnote");
+    const changeBtn=document.getElementById("ytchange");
+    if(!note) return;
+    if(!this.url){
+      note.innerHTML = Net.mode==="guest"
+        ? `Nobody's sharing music yet.`
+        : `Nothing queued.`;
+      if(changeBtn) changeBtn.hidden=true;
+      return;
+    }
+    if(Net.mode==="guest"){
+      note.innerHTML = `<b>${escHtml(this.fromName||"The host")}</b> shared this track — use the controls below to play it.`;
+      if(changeBtn) changeBtn.hidden=true;   // guests don't control which link plays
+    } else {
+      note.innerHTML = `Sharing with the table.`;
+      if(changeBtn) changeBtn.hidden=false;
+    }
+  },
+
+  _spawn(){
+    this.clearError();
+    this.usingFallback=false;
+    document.getElementById("ytctl").hidden=false;
+    document.getElementById("ytvol").value=this.vol;
+    if(!window.YT || !window.YT.Player){ this._pending=true; loadYT(); return; }
+    if(this.player){ this.player.loadVideoById(this.videoId); return; }
+    this.player=new YT.Player("ytplayer", {
+      videoId:this.videoId, width:"100%", height:"100%",
+      playerVars:{ playsinline:1, modestbranding:1, rel:0, origin:location.origin },
+      events:{
+        onReady:(e)=>{
+          this.ready=true;
+          this.clearError();
+          e.target.setVolume(this.vol);
+          if(this.wantPlay) e.target.playVideo();
+        },
+        onStateChange:(e)=>{
+          const btn=document.getElementById("ytplay");
+          if(!btn) return;
+          btn.textContent = e.data===YT.PlayerState.PLAYING ? "⏸ Pause" : "▶ Play";
+        },
+        onError:(e)=>this.showError(e.data)
+      }
+    });
+  },
+
+  // 101/150 mean the uploader genuinely disabled embedding everywhere —
+  // no client-side trick overrides that. Anything else, offer the same
+  // "open on YouTube instead" escape hatch rather than a dead player.
+  showError(code){
+    const box=document.getElementById("ytmsg");
+    box.hidden=false;
+    const restricted = (code===101 || code===150);
+    box.innerHTML = restricted
+      ? `<span>This video's owner has disabled embedding, so it can't play here — but it'll still play normally on YouTube itself.</span>`
+      : `<span>Couldn't play that embed here (error ${code}) — it'll still play normally on YouTube itself.</span>`;
+    document.getElementById("ytopen").hidden=false;
+    document.getElementById("ytctl").hidden=true;
+  },
+  clearError(){
+    const box=document.getElementById("ytmsg");
+    if(box){ box.hidden=true; box.innerHTML=""; }
+    const openBtn=document.getElementById("ytopen");
+    if(openBtn) openBtn.hidden=true;
+  },
+
+  openTab(){
+    if(this.url) window.open(this.url, "_blank", "noopener");
+  },
+
+  toggle(){
+    if(this.usingFallback) return;
+    if(!this.player){ this.wantPlay=true; if(this.videoId) this._spawn(); return; }
+    const st=this.player.getPlayerState();
+    if(st===1) this.player.pauseVideo(); else { this.wantPlay=true; this.player.playVideo(); }
+  },
+
+  setVolume(v){
+    this.vol=+v;
+    if(this.player && this.player.setVolume) this.player.setVolume(+v);
+    this._save();
+  },
+
+  changeTrack(){
+    if(Net.mode==="guest") return;   // guests can't change the host's link
+    this.url=null; this.videoId=null; this.fromName=null;
+    try{ if(this.player && this.player.stopVideo) this.player.stopVideo(); }catch(e){}
+    try{ localStorage.removeItem("barrow-music"); }catch(e){}
+    this.render();
+    this.open();
+  },
+
+  toggleMin(){
+    const w=document.getElementById("ytwrap");
+    w.classList.toggle("min");
+    this._save();
+  },
+
+  close(){
+    if(this.player && this.player.stopVideo) try{ this.player.stopVideo(); }catch(e){}
+    document.getElementById("ytwrap").hidden=true;
+    this.wantPlay=false;
+    this._save();
+  },
+
+  _save(){
+    const w=document.getElementById("ytwrap");
+    try{ localStorage.setItem("barrow-music", JSON.stringify({
+      url:this.url, hidden:w.hidden, min:w.classList.contains("min"), vol:this.vol
+    })); }catch(e){}
+  }
+};
+// Lazy-loads the YouTube IFrame Player API script the same way loadPeer()
+// lazy-loads PeerJS, only once a track is actually being played.
+function loadYT(){
+  if(window.YT && window.YT.Player) return;
+  if(document.getElementById("yt-iframe-api")) return;
+  const s=document.createElement("script");
+  s.id="yt-iframe-api";
+  s.src="https://www.youtube.com/iframe_api";
+  document.head.appendChild(s);
+}
+// The YouTube API script calls this global once it has finished loading —
+// if a track was waiting on it, spawn the player now.
+function onYouTubeIframeAPIReady(){ if(Music._pending || Music.videoId) Music._spawn(); }
+
+/* -------------------------------------------------------------- output --- */
+let BUF=null;   // when non-null, prose is also captured for broadcast
+
+function out(html, quiet){
+  const l=document.getElementById("log");
+  const p=document.createElement("p"); p.innerHTML=html; l.appendChild(p);
+  l.scrollTop=l.scrollHeight;
+  if(BUF && !quiet) BUF.push({k:"p", html});
+  sfxForLine(html);
+}
+
+// Every narrated line — host-local or pushed to a guest — passes through
+// out(). The narrator already tags outcomes as good/bad/whiff for player
+// color (hit/hurt/miss); reading that back off the markup gives sound
+// effects for free, in solo AND multiplayer, without threading raw event
+// types through the network layer.
+function sfxForLine(html){
+  if(/is now level/.test(html)){ SFX.levelup(); return; }
+  if(/stopper free and drinks|still sealed, still good/.test(html)){ SFX.potion(); return; }
+  if(/\bfinds\b/.test(html) && /class="hit"/.test(html)){ SFX.loot(); return; }
+  if(/class="hurt"/.test(html)){ SFX.bad(); return; }
+  if(/class="hit"/.test(html)){ SFX.good(); return; }
+  if(/class="miss"/.test(html)){ SFX.miss(); return; }
+}
+function scene(title){
+  const l=document.getElementById("log");
+  const h=document.createElement("h2"); h.className="scene"; h.textContent=title; l.appendChild(h);
+  l.scrollTop=l.scrollHeight;
+  if(BUF) BUF.push({k:"h", html:title});
+}
+
+// A joining or reconnecting guest's log starts completely empty — they get
+// the state (hp, inventory, choices) but none of the prose that got the
+// party there, including the opening scene. This hands them a recap of
+// where things stand right now, read-only (no spawning, no state changes),
+// so their screen isn't just a blank log and a wall of buttons.
+function introLines(){
+  const r=S.map[S.at];
+  const lines=[{k:"h", html:r.n}];
+  lines.push({k:"p", html:`The chamber is ${r.adj}. ${r.f} ${r.det}`});
+  if(S.fight) lines.push({k:"p", html:`<span class="hurt">${S.fight.the} is here — the fight is already on.</span>`});
+  return lines;
+}
+
+/* -------------------------------------------------------------- engine --- */
+const G = {
+pending:null, pendingItem:null, manualDice:true, busy:false,
+
+/* ---- character creation: a real multi-step creator ---- */
+draft:null,
+
+start(){
+  try{ G.manualDice = localStorage.getItem("barrow-manualdice")!=="0"; }catch(e){ G.manualDice=true; }
+  const db=document.getElementById("dicebtn");
+  if(db) db.textContent = G.manualDice ? "🎲 Dice Rolls: On" : "🎲 Dice Rolls: Off";
+  try{ SFX.on = localStorage.getItem("barrow-sfx")!=="0"; }catch(e){ SFX.on=true; }
+  const sb=document.getElementById("sfxbtn");
+  if(sb) sb.textContent = SFX.on ? "🔊 Sound: On" : "🔇 Sound: Off";
+  Music.init();
+
+  // Offer to pick back up a delve in progress. A finished run (dead or won)
+  // is not something to resume into — that goes straight to a new character.
+  let saved=null;
+  try{
+    const raw=localStorage.getItem("barrow");
+    if(raw){
+      const d=JSON.parse(raw);
+      if(d && d.party && d.party[0] && d.party[0].anc && !(d.flags&&(d.flags.dead||d.flags.won))) saved=d;
+    }
+  }catch(e){ saved=null; }
+
+  if(saved){
+    modal(`<h3>Welcome back</h3>
+      <p>Still down there: ${saved.party.map(p=>`${escHtml(p.name)}, level ${p.lvl} ${p.cls.toLowerCase()}`).join(", ")}.</p>
+      <div class="pick">
+        <button class="ch" onclick="G.resumeSave()"><b>Continue the delve</b></button>
+        <button class="ch" onclick="closeModal(); G.newGame()"><b>Start a new character</b></button>
+      </div>`);
+    return;
+  }
+  G.newGame();
+},
+
+newGame(){
+  G.draft={ name:R.pick(T.names), anc:"Human", cls:"Fighter", bg:"Soldier",
+            dun:"barrow", av:null, step:0 };
+  G.draft.av=autoAvatar(G.draft.name);
+  G.creator();
+},
+
+resumeSave(){
+  try{
+    const d=JSON.parse(localStorage.getItem("barrow"));
+    S=d; S.me=Math.min(S.me||0, S.party.length-1);
+    closeModal();
+    document.getElementById("log").innerHTML="";
+    out(`<span class="sys">Picking up where you left off — ${S.party.map(p=>`${p.name} (${p.lvl})`).join(", ")}.</span>`);
+    G.describeRoom(false); sync();
+  }catch(e){ closeModal(); G.newGame(); }
+},
+
+// One renderer for all five steps keeps the markup honest and the phone happy.
+creator(){
+  const d=G.draft;
+  const steps=["Name","Ancestry","Class","Background","Look"];
+  const nav=steps.map((s,i)=>
+    `<button class="stp${i===d.step?" on":""}" onclick="G.step(${i})">${i+1}. ${s}</button>`).join("");
+
+  let body="";
+  if(d.step===0){
+    body=`<p>Who is going down there? And into which hole in the ground.</p>
+      <div class="namerow">
+        <input id="cname" maxlength="16" value="${escAttr(d.name)}" placeholder="name"
+          oninput="G.draftName(this.value)">
+        <button class="ch" onclick="G.rollName()" title="another name">🎲</button>
+      </div>
+      <div class="pick">${Object.entries(DUNGEONS).map(([k,v])=>
+        `<button class="ch${d.dun===k?" sel":""}" onclick="G.pick('dun','${k}')">
+           <b>${v.name}</b><br><span class="dim">${v.hook}</span></button>`).join("")}</div>`;
+  }
+  else if(d.step===1){
+    body=`<p>Ancestry nudges your numbers and gives you one thing that is actually yours.</p>
+      <div class="pick">${Object.entries(ANCESTRIES).map(([k,v])=>
+        `<button class="ch${d.anc===k?" sel":""}" onclick="G.pick('anc','${k}')">
+           <b>${k}</b> — ${v.blurb}<br>
+           <span class="dim">${bumpText(v.bump, d.cls)} · <em>${v.trait}:</em> ${v.tdesc}</span></button>`).join("")}</div>`;
+  }
+  else if(d.step===2){
+    body=`<p>Your class decides how you fight and the one trick you get to pull.</p>
+      <div class="pick">${Object.entries(CLASSES).map(([k,v])=>
+        `<button class="ch${d.cls===k?" sel":""}" onclick="G.pick('cls','${k}')">
+           <b>${k}</b> — ${v.blurb}<br>
+           <span class="dim">d${v.hd} hit die · AC ${v.ac} · ${v.wpn.name} ·
+           <em>${v.power.name}:</em> ${v.power.desc}</span></button>`).join("")}</div>`;
+  }
+  else if(d.step===3){
+    body=`<p>What you did before the barrow. It still counts for something.</p>
+      <div class="pick">${Object.entries(BACKGROUNDS).map(([k,v])=>
+        `<button class="ch${d.bg===k?" sel":""}" onclick="G.pick('bg','${k}')">
+           <b>${k}</b> — ${v.blurb}<br>
+           <span class="dim">${v.skill} · ${v.item} · <em>${v.trait}:</em> ${v.tdesc}</span></button>`).join("")}</div>`;
+  }
+  else {
+    body=`<p>A sigil is drawn from your name. Take it, or pick a device and a colour.</p>
+      <div class="avprev">${avatarSVG({name:d.name, av:d.av}, 72)}
+        <div><b>${escHtml(d.name)}</b><br><span class="dim">${d.anc} ${d.cls.toLowerCase()} · ${d.bg.toLowerCase()}</span></div></div>
+      <div class="emgrid">
+        <button class="em${d.av.em===-1?" sel":""}" onclick="G.pickEm(-1)" title="Sigil from your name">
+          ${avatarSVG({name:d.name, av:{em:-1,col:d.av.col,seed:hashStr(d.name)}}, 34)}</button>
+        ${EMBLEMS.map((e,i)=>`<button class="em${d.av.em===i?" sel":""}" onclick="G.pickEm(${i})" title="${e.n}">
+          ${avatarSVG({name:d.name, av:{em:i,col:d.av.col}}, 34)}</button>`).join("")}
+      </div>
+      <div class="colrow">${AVCOLORS.map((c,i)=>
+        `<button class="col${d.av.col===i?" sel":""}" style="background:${c}" onclick="G.pickCol(${i})"></button>`).join("")}</div>`;
+  }
+
+  const last = d.step===4;
+  modal(`<h3>${DUNGEONS[d.dun].name}</h3>
+    <div class="stps">${nav}</div>
+    ${body}
+    <div class="navrow">
+      ${d.step>0?`<button class="ch" onclick="G.step(${d.step-1})">Back</button>`
+                :`<button class="ch" onclick="G.chose()">Surprise me</button>`}
+      <button class="ch go" onclick="${last?"G.begin()":`G.step(${d.step+1})`}">
+        <b>${last?"Begin the descent":"Next"}</b></button>
+    </div>`);
+  if(d.step===0){ const el=document.getElementById("cname"); if(el && WANT_FOCUS) el.focus(); }
+},
+
+step(i){ G.draft.step=Math.max(0,Math.min(4,i)); G.creator(); },
+
+// Quick start: skip the creator entirely. Used by the "Surprise me" button
+// and by the automated test suites.
+chose(cls, anc, bg, dun, name){
+  const c = CLASSES[cls] ? cls : R.pick(Object.keys(CLASSES));
+  const a = ANCESTRIES[anc] ? anc : R.pick(Object.keys(ANCESTRIES));
+  const g = BACKGROUNDS[bg] ? bg : R.pick(Object.keys(BACKGROUNDS));
+  const d = DUNGEONS[dun] ? dun : "barrow";
+  G.draft={ name: cleanName(name) || R.pick(T.names), cls:c, anc:a, bg:g, dun:d, step:4 };
+  G.draft.av=autoAvatar(G.draft.name);
+  G.begin();
+},
+pick(k,v){
+  G.draft[k]=v;
+  if(k==="cls" || k==="anc") { /* preview text depends on both */ }
+  G.creator();
+},
+draftName(v){
+  G.draft.name=v;
+  if(G.draft.av.em===-1) G.draft.av=autoAvatar(v||"?");
+},
+rollName(){
+  G.draft.name=R.pick(T.names);
+  if(G.draft.av.em===-1) G.draft.av=autoAvatar(G.draft.name);
+  G.creator();
+},
+pickEm(i){ G.draft.av={...G.draft.av, em:i, seed:hashStr(G.draft.name)}; G.creator(); },
+pickCol(i){ G.draft.av={...G.draft.av, col:i}; G.creator(); },
+
+begin(){
+  const d=G.draft;
+  const name=cleanName(d.name) || R.pick(T.names);
+  const pc=newPC(name, d.cls, d.anc, d.bg, {...d.av});
+  S=newWorld(pc, d.dun);
+  closeModal();
+  document.getElementById("log").innerHTML="";
+  out(`<span class="sys">${name} — ${d.anc} ${d.cls.toLowerCase()}, ${d.bg.toLowerCase()}. `+
+      `${pc.hpMax} hit points, AC ${pc.ac}. ${ANCESTRIES[d.anc].trait} and ${BACKGROUNDS[d.bg].trait}.</span>`);
+  G.tryOllama(false);
+  G.describeRoom(true);
+  sync();
+},
+
+/* ---- renaming and re-badging, in play ---- */
+identity(){
+  if(!S) return;
+  const me=ME();
+  modal(`<h3>${escHtml(me.name)}</h3>
+    <p>Change what you are called, or what you are marked with. Everyone sees it.</p>
+    <div class="namerow">
+      <input id="rname" maxlength="16" value="${escAttr(me.name)}">
+      <button class="ch" onclick="document.getElementById('rname').value=R.pick(T.names)">🎲</button>
+    </div>
+    <div class="emgrid">
+      <button class="em" onclick="G.setAv(-1)">${avatarSVG({name:me.name,av:{em:-1,col:me.av.col,seed:hashStr(me.name)}},34)}</button>
+      ${EMBLEMS.map((e,i)=>`<button class="em${me.av.em===i?" sel":""}" onclick="G.setAv(${i})" title="${e.n}">
+        ${avatarSVG({name:me.name,av:{em:i,col:me.av.col}},34)}</button>`).join("")}
+    </div>
+    <div class="colrow">${AVCOLORS.map((c,i)=>
+      `<button class="col${me.av.col===i?" sel":""}" style="background:${c}" onclick="G.setCol(${i})"></button>`).join("")}</div>
+    <div class="navrow">
+      <button class="ch" onclick="closeModal()">Close</button>
+      <button class="ch go" onclick="G.applyName()"><b>Save name</b></button>
+    </div>`);
+},
+applyName(){
+  const v=document.getElementById("rname").value;
+  G.send("rename", {name:v});
+  closeModal();
+},
+setAv(em){ G.send("avatar", {em, col:ME().av.col}); G.identity(); },
+setCol(col){ G.send("avatar", {em:ME().av.em, col}); G.identity(); },
+
+// identity changes are host-authoritative just like everything else
+send(kind, payload){
+  if(Net.mode==="guest"){ Net.transport.toHost({t:kind, ...payload}); return; }
+  Net.applyIdentity(S.me, kind, payload);
+},
+
+describeRoom(first){
+  const r=S.map[S.at];
+  scene(r.n);
+  const D=DUNGEONS[S.dun];
+  if(S.flags.waking)
+    out(`You come back through ${r.n.toLowerCase()}. It is not as you left it — the ${r.adj} air has gone
+         thin and moving, and what you are carrying is very cold.`);
+  else
+    out(`${first?`The steps end and ${D.short} begins. `:""}The chamber is ${r.adj}. ${r.f} ${r.det}`);
+
+  if(r.mob && !r.cleared){
+    const m=spawn(r.mob);
+    if(m.boss){
+      const hurtOnes=S.party.filter(p=>p.hp<p.hpMax||p.down);
+      S.party.forEach(p=>{ p.down=false; p.hp=p.hpMax;
+        p.power.uses=Math.max(p.power.uses, Math.ceil(CLASSES[p.cls].power.uses/2)); });
+      if(hurtOnes.length)
+        out(`<span class="hit">Nothing moves. For the first time since the steps, nothing moves at all.
+             You bind what needs binding and get your breath back — everyone to full, and enough left
+             for one more trick each.</span>`);
+    }
+    S.fight={...m}; S.round=1; S.acted=[]; S.active=conscious()[0]??0;
+    S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
+    out(`<span class="hurt">${m.the} is here — ${m.fl}. It has seen you.</span>`);
+  } else {
+    out(`<span class="sys">You hear ${R.pick(T.sound)}.</span>`);
+    S.acted=[]; S.active=conscious()[0]??0;
+  }
+  G.choices();
+},
+
+/* ---- intent entry point ---- */
+act(action, arg, target){
+  if(Net.mode==="guest"){ Net.send(action, arg, target); return; }
+  return G.perform(S.me, action, arg, target);
+},
+
+/* ---- dice-roll ceremony -------------------------------------------------
+   Every action below already resolves on a d20 (or d6, for the oracle)
+   check buried in Rules — the math never changes. This just makes the
+   player press a button and watch the die tumble before the result is
+   revealed, the way it would land on a table. Programmatic callers (tests,
+   AI policies, network replays) go straight through G.act and never see
+   this — it's a human-facing ceremony only. */
+ROLL_POWERS: ["Sneak Attack","Hunter's Mark","Divine Smite"],
+ROLL_LABEL: {attack:"the attack", power:"the strike", flee:"the escape",
+  search:"the search", talk:"the talk", pray:"the prayer", hide:"the hide",
+  freeform:"what happens"},
+
+rollsDice(action){
+  if(["attack","flee","search","talk","pray","hide","freeform"].includes(action)) return true;
+  if(action==="power"){ const me=ME(); return !!me && G.ROLL_POWERS.includes(me.power.name); }
+  return false;
+},
+
+toggleDice(){
+  G.manualDice = !G.manualDice;
+  try{ localStorage.setItem("barrow-manualdice", G.manualDice?"1":"0"); }catch(e){}
+  const b=document.getElementById("dicebtn");
+  if(b) b.textContent = G.manualDice ? "🎲 Dice Rolls: On" : "🎲 Dice Rolls: Off";
+},
+
+toggleSfx(){
+  SFX.on = !SFX.on;
+  try{ localStorage.setItem("barrow-sfx", SFX.on?"1":"0"); }catch(e){}
+  const b=document.getElementById("sfxbtn");
+  if(b) b.textContent = SFX.on ? "🔊 Sound: On" : "🔇 Sound: Off";
+  if(SFX.on) SFX.click();
+},
+
+/* ---- UI entry point: gates roll-actions behind a press, passes the rest
+   straight through to act(). Use this from buttons/typed input; use act()
+   directly for anything programmatic. */
+attempt(action, arg, target){
+  if(!G.manualDice || !S || !G.rollsDice(action)) return G.act(action, arg, target);
+  const box=document.getElementById("choices");
+  if(!box) return G.act(action, arg, target);
+  box.className="gate";
+  box.innerHTML = `<div class="rollgate">
+      <button id="diebtn" class="die" title="Roll the die">🎲</button>
+      <span class="rollprompt">Press the die to resolve <b>${G.ROLL_LABEL[action]||"this"}</b>.</span>
+      <button class="rollskip" id="rollskip">skip the ceremony</button>
+    </div>`;
+  document.getElementById("txt").disabled=true;
+  document.getElementById("go").disabled=true;
+  const resolve=()=>{ box.className=""; G.act(action, arg, target); };
+  document.getElementById("rollskip").onclick=resolve;
+  const die=document.getElementById("diebtn");
+  die.onclick=()=>{
+    die.disabled=true; die.classList.add("spin");
+    const faces="⚀⚁⚂⚃⚄⚅";
+    let n=0;
+    const spin=setInterval(()=>{ die.textContent=faces[R.int(6)]; SFX.diceTick(); if(++n>=9){ clearInterval(spin); SFX.diceLand(); resolve(); } }, 55);
+  };
+},
+
+/* ---- the authoritative turn ---- */
+async perform(a, action, arg, target){
+  if(!S || S.flags.dead || S.flags.won) return;
+  const FREEBIES=["query","inv","cmds","look","listen","noSuch"];
+  // A turn can take a few seconds to settle (an awaited local-AI narration
+  // call, say) — without this guard, an impatient second click or keypress
+  // before it does would run a second perform() concurrently with the
+  // first, and both race on the same shared state. That race is exactly
+  // what could leave the sheet stuck on stale numbers even though the game
+  // had already moved on underneath it, or throw mid-turn outright.
+  if(G.busy && !FREEBIES.includes(action)){
+    if(a===S.me) out(`<span class="sys">Still catching up on the last turn — one moment.</span>`);
+    return;
+  }
+  const lock = !FREEBIES.includes(action);
+  if(lock) G.busy=true;
+  try{
+
+  if(PC(a).down && action!=="query" && action!=="inv" && action!=="cmds"){
+    if(a===S.me) out(`<span class="sys">${PC(a).name} is on the floor. Someone else will have to.</span>`);
+    return;
+  }
+  // In combat, turn order is enforced. Out of combat, anyone may act.
+  if(S.fight && !FREEBIES.includes(action) && S.active!==a){
+    if(a===S.me) out(`<span class="sys">Wait — it is ${PC(S.active).name}'s turn.</span>`);
+    return;
+  }
+
+  if(Net.mode==="host") BUF=[];
+  const r=S.map[S.at];
+  let ev=[], spent=false;
+
+  switch(action){
+    case "attack":
+      if(!S.fight){ out(`<span class="sys">There is nothing here to fight.</span>`); break; }
+      ev=Rules.attack(a, S.fight); spent=true; break;
+
+    case "power": {
+      const pc=PC(a);
+      if(!S.fight && pc.power.name!=="Second Wind"){ out(`<span class="sys">Nothing to aim it at.</span>`); break; }
+      if(pc.power.name==="Second Wind" && pc.hp>=pc.hpMax){
+        out(`<span class="sys">${pc.name} is unhurt. Save it.</span>`); break; }
+      ev=Rules.power(a, S.fight||{name:"the dark",ac:10}); spent=true; break;
+    }
+
+    case "potion": {
+      const pc=PC(a);
+      if(pc.potions<=0){ out(`<span class="sys">No potions left.</span>`); break; }
+      if(pc.hp>=pc.hpMax){ out(`<span class="sys">${pc.name} is unhurt. Save it.</span>`); break; }
+      ev=[{t:"potion", src:a, amt:R.dice(2,4)+2}]; spent=true; break;
+    }
+
+    case "revive": {
+      const t=(target!==undefined&&target!==null)?target:S.party.findIndex(p=>p.down);
+      if(t<0 || !PC(t) || !PC(t).down){ out(`<span class="sys">Nobody is down.</span>`); break; }
+      if(PC(a).potions<=0){ out(`<span class="sys">No potion to give them.</span>`); break; }
+      ev=Rules.revive(a, t); spent=true; break;
+    }
+
+    case "flee":
+      if(!S.fight){ out(`<span class="sys">Nothing is chasing you.</span>`); break; }
+      ev=Rules.flee(a, S.fight); spent=true; break;
+
+    case "move":
+      if(S.fight){ out(`<span class="hurt">It is between you and the way on.</span>`); break; }
+      if(S.flags.crown){
+        if(S.at<=0) ev=[{t:"won"}];
+        else ev=[{t:"move", to:S.at-1}];
+      } else if(S.at>=S.map.length-1){
+        out(`<span class="sys">You are not leaving without ${DUNGEONS[S.dun].goal}.</span>`);
+      } else ev=[{t:"move", to:S.at+1}];
+      break;
+
+    case "search":
+      if(S.fight){ out(`<span class="hurt">Not while that is looking at you.</span>`); break; }
+      if(r.searched){ out(`<span class="sys">Already been over this one.</span>`); break; }
+      ev=Rules.search(a, r); break;
+
+    case "rest":
+      if(S.fight){ out(`<span class="hurt">You will not be resting.</span>`); break; }
+      ev=Rules.rest(a); break;
+
+    case "take":
+      if(S.at===S.map.length-1 && !S.flags.crown && !S.fight) ev=[{t:"crown", src:a}];
+      else out(`<span class="sys">Nothing here comes loose.</span>`);
+      break;
+
+    case "look":
+      out(`${r.f} ${r.det} ${S.fight
+        ? `<span class="hurt">${S.fight.the} has not moved. It is waiting for you to.</span>`
+        : (S.flags.crown?`Behind you, the way you came. It is longer than you remember.`
+                        :`Ahead, the passage continues down.`)}`);
+      break;
+
+    case "listen": out(`<span class="sys">You hear ${R.pick(T.sound)}.</span>`); break;
+    case "inv":    G.sheet(); break;
+    case "cmds":   G.help(); break;
+    case "query":  out(answerQuery(String(arg||"").toLowerCase().replace(/[^a-z0-9' ]/g," ").split(/\s+/).filter(Boolean))); break;
+
+    case "noSuch": {
+      const me=PC(a);
+      out(`<span class="sys">No such thing. ${me.name} carries: ${me.inv.join(", ")}`+
+          `${me.potions?`, and ${me.potions} potion${me.potions===1?"":"s"}`:""}. `+
+          `The one ability is <b>${me.power.name}</b> — type <em>cast</em>.</span>`);
+      break;
+    }
+
+    case "wait":
+      out(`<span class="sys">${PC(a).name} holds still and lets the moment go past.</span>`);
+      if(S.fight) spent=true;
+      break;
+
+    case "talk": ev=Rules.talk(a, S.fight); spent=true; break;
+    case "pray": ev=Rules.pray(a); spent=true; break;
+    case "hide": ev=Rules.hide(a, S.fight); spent=true; break;
+
+    case "freeform":
+      out(`<span class="sys">The rules have no entry for that, so ${DUNGEONS[S.dun].short} decides.</span>`);
+      ev=Rules.freeform(a, arg, G.pendingItem);
+      G.pendingItem=null; spent=true;
+      if(ev[0] && !ev[0].o.yes && ev[0].roll.fumble) ev.push({t:"note", text:`And then ${Oracle.twist()}.`});
+      break;
+  }
+
+  if(ev.length){
+    apply(ev);
+    await Narrator.render(ev, r.n);
+  }
+  await G.resolve(a, ev, spent);
+
+  } finally {
+    if(lock) G.busy=false;
+  }
+},
+
+/* ---- post-turn ---- */
+async resolve(a, ev, spent){
+  const r=S.map[S.at];
+
+  if(S.fight && S.fight.hp<=0){
+    out(`<span class="hit">${S.fight.the} comes apart and does not get up.</span>`);
+    const g=[{t:"xp", amt:S.fight.xp}];
+    apply(g); await Narrator.render(g, r.n);
+    const boss=S.fight.boss;
+    S.fight=null; r.cleared=true; S.acted=[];
+    S.party.forEach(p=>{ p.rage=0; });          // rage ends with the fight
+    // whoever was down gets dragged up once the fighting stops
+    const up=S.party.filter(p=>p.down);
+    if(up.length){ up.forEach(p=>{ p.down=false; p.hp=1; });
+      out(`<span class="hit">${up.map(p=>p.name).join(" and ")} get${up.length>1?"":"s"} hauled upright — one hit point and a bad hour ahead.</span>`); }
+    if(boss) out(`<span class="hit">The crown is unguarded now.</span>`);
+  }
+
+  if(ev.some(e=>e.t==="wandering"||e.t==="noise") && !S.fight){
+    const m=spawn(rollMob(S.at)||"rat");
+    S.fight={...m}; S.round=1; S.acted=[]; S.active=conscious()[0]??0;
+    S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
+    out(`<span class="hurt">Something found you. ${m.the} — ${m.fl}.</span>`);
+  }
+
+  if(ev.some(e=>e.t==="move")){ G.describeRoom(false); sync(); G.finish(); return; }
+
+  // turn order + the monster's swing
+  if(S.fight && S.fight.hp>0 && !S.flags.dead){
+    if(spent && !S.acted.includes(a)) S.acted.push(a);
+    const alreadyActed=ev.some(e=>e.mAct);
+    const live=conscious();
+    const pending=live.filter(i=>!S.acted.includes(i));
+    if(pending.length){
+      S.active=pending[0];
+    } else {
+      S.acted=[]; S.active=live[0]??0; S.round++;
+      if(!alreadyActed){
+        const mev=Rules.monsterTurn(S.fight);
+        apply(mev); await Narrator.render(mev, r.n);
+      }
+    }
+  }
+
+  // Never leave the turn parked on someone who cannot act. Solo could not
+  // expose this; with a party, downing the active character stalled the round.
+  if(S.fight && S.fight.hp>0){
+    const live=conscious();
+    if(live.length && !live.includes(S.active)){
+      const pending=live.filter(i=>!S.acted.includes(i));
+      if(pending.length) S.active=pending[0];
+      else{
+        S.acted=[]; S.active=live[0]; S.round++;
+        const mev=Rules.monsterTurn(S.fight);
+        apply(mev); await Narrator.render(mev, r.n);
+      }
+    }
+  }
+
+  // One desperate reprieve per character — but only when going down would end
+  // the whole party. With allies still up, down is down; they can pick you up.
+  if(partyWiped()){
+    const cand=S.party.map((p,ix)=>ix).filter(i=>!PC(i).stand);
+    if(cand.length){
+      const i=cand[0];
+      PC(i).stand=true;                      // one attempt, win or lose
+      const roll=Rules.lastStand(i);
+      if(roll.ok){ const sev=[{t:"stand", vs:i, roll}]; apply(sev); await Narrator.render(sev, r.n);
+                   if(S.fight) S.active=i; }
+    }
+  }
+  if(partyWiped()) S.flags.dead=true;
+  else if(!conscious().includes(S.active)) S.active=conscious()[0]??S.active;
+
+  if(S.flags.dead){ G.death(); G.finish(); return; }
+  if(S.flags.won){ G.victory(); G.finish(); return; }
+  sync(); G.choices(); G.finish();
+},
+
+finish(){ if(Net.mode==="host"){ Net.push(); BUF=null; } },
+
+/* ---- choices ---- */
+choices(){
+  const box=document.getElementById("choices"); box.innerHTML=""; box.className="";
+  if(!S) return;
+  const me=ME(), r=S.map[S.at];
+  const myTurn = !S.fight || S.active===S.me;
+  const add=(label,fn,danger)=>{
+    const b=document.createElement("button");
+    b.className="ch"+(danger?" danger":""); b.innerHTML=label; b.onclick=fn; box.appendChild(b);
+  };
+
+  // turn banner
+  const tb=document.getElementById("turn");
+  if(S.flags.dead||S.flags.won) tb.innerHTML="";
+  else if(S.party.length>1)
+    tb.innerHTML = S.fight
+      ? (myTurn ? `<b>Your turn.</b> Round ${S.round}.`
+                : `Waiting on <b>${PC(S.active).name}</b> — round ${S.round}.`)
+      : `Between fights — anyone may act.`;
+  else tb.innerHTML="";
+
+  const inputOn = myTurn && !me.down;
+  document.getElementById("txt").disabled=!inputOn;
+  document.getElementById("go").disabled=!inputOn;
+
+  if(me.down){
+    add(`<span style="color:var(--dim)">You are down — wait for a hand up</span>`, ()=>{});
+    return;
+  }
+  if(!myTurn) return;
+
+  if(S.fight){
+    add(`<b>Attack</b> the ${S.fight.name.toLowerCase()}`, ()=>G.attempt("attack"), true);
+    if(me.power.uses>0 && !(me.power.name==="Second Wind" && me.hp>=me.hpMax))
+      add(`<b>${me.power.name}</b> <span style="color:var(--dim)">(${me.power.uses})</span>`, ()=>G.attempt("power"));
+    if(me.potions>0)    add(`<b>Drink</b> a potion <span style="color:var(--dim)">(${me.potions})</span>`, ()=>G.act("potion"));
+    const down=S.party.map((p,i)=>({p,i})).filter(x=>x.p.down);
+    if(down.length && me.potions>0) add(`<b>Help</b> ${down[0].p.name} up`, ()=>G.act("revive",null,down[0].i));
+    add(`<b>Hide</b>`, ()=>G.attempt("hide"));
+    add(`<b>Talk</b> to it`, ()=>G.attempt("talk"));
+    add(`<b>Flee</b>`, ()=>G.attempt("flee"), true);
+  } else {
+    if(S.at===S.map.length-1 && !S.flags.crown) add(`<b>Take</b> ${DUNGEONS[S.dun].goal}`, ()=>G.act("take"), true);
+    else if(S.flags.crown) add(S.at<=0?`<b>Climb</b> out into daylight`:`<b>Climb</b> toward the surface`, ()=>G.act("move"));
+    else add(`<b>Go</b> deeper`, ()=>G.act("move"));
+    if(!r.searched) add(`<b>Search</b> the chamber`, ()=>G.attempt("search"));
+    add(`<b>Look</b> around`, ()=>G.act("look"));
+    if(S.party.some(p=>p.hp<p.hpMax)) add(`<b>Rest</b> <span style="color:var(--dim)">(risky)</span>`, ()=>G.act("rest"));
+    if(me.potions>0 && me.hp<me.hpMax) add(`<b>Drink</b> a potion <span style="color:var(--dim)">(${me.potions})</span>`, ()=>G.act("potion"));
+  }
+  if(inputOn) focusTxt();
+},
+
+clarify(note, alts){
+  const box=document.getElementById("choices"); box.innerHTML="";
+  out(`<span class="sys">${note}</span>`);
+  for(const [label, action] of alts){
+    const b=document.createElement("button"); b.className="ch";
+    b.innerHTML = action==="freeform"
+      ? `<span style="color:var(--purple)">${label}</span>` : `<b>${label}</b>`;
+    b.onclick=()=>{
+      if(String(action).startsWith("revive:")) G.act("revive", null, +String(action).split(":")[1]);
+      else G.attempt(action, G.pending);
+    };
+    box.appendChild(b);
+  }
+  const c=document.createElement("button"); c.className="ch";
+  c.innerHTML=`<span style="color:var(--dim)">Never mind</span>`;
+  c.onclick=()=>{ out(`<span class="sys">You think better of it.</span>`); G.choices(); };
+  box.appendChild(c);
+  focusTxt();
+},
+
+/* ---- endings ---- */
+death(){
+  document.getElementById("choices").innerHTML="";
+  document.getElementById("turn").innerHTML="";
+  SFX.down();
+  scene(`${DUNGEONS[S.dun].short.replace(/^the /,"The ")} keeps you`);
+  out(`${S.party.length>1?"They go down":"You go down"} onto the cold stones, and the cold stones are
+       patient, and after a while ${S.party.length>1?"they are":"you are"} simply another thing that is here.
+       <span class="sys">${S.party.map(p=>`${p.name}, level ${p.lvl}`).join(" · ")} — reached ${S.map[S.at].n}.</span>`);
+  if(Net.mode!=="guest"){
+    const b=document.getElementById("choices");
+    const btn=document.createElement("button"); btn.className="ch";
+    btn.innerHTML="<b>Try again</b>"; btn.onclick=()=>G.start(); b.appendChild(btn);
+  }
+  sync();
+},
+victory(){
+  document.getElementById("choices").innerHTML="";
+  document.getElementById("turn").innerHTML="";
+  SFX.victory();
+  scene("Daylight");
+  out(`You come up out of ${DUNGEONS[S.dun].short} with ${DUNGEONS[S.dun].prize.toLowerCase()}, and the light
+       is so ordinary it is almost insulting. Behind you, something settles, and stops.
+       <span class="sys">${S.party.map(p=>`${p.name} the ${p.cls.toLowerCase()}, level ${p.lvl}, ${p.hp}/${p.hpMax}`).join(" · ")}</span>`);
+  if(Net.mode!=="guest"){
+    const b=document.getElementById("choices");
+    const btn=document.createElement("button"); btn.className="ch";
+    btn.innerHTML="<b>Descend again</b>"; btn.onclick=()=>G.start(); b.appendChild(btn);
+  }
+  sync();
+},
+
+/* ---- panels ---- */
+sheet(){
+  const me=ME();
+  modal(`<h3>${avatarSVG(me,30)} ${escHtml(me.name)}</h3>
+    <p>Level ${me.lvl} ${me.anc||""} ${me.cls}${me.bg?" · "+me.bg:""} · ${me.hp}/${me.hpMax} hp · AC ${me.ac} · proficiency +${prof(me)}</p>
+    <p><span class="dim">${me.anc?ANCESTRIES[me.anc].trait+": "+ANCESTRIES[me.anc].tdesc:""}
+       ${me.bg?"· "+BACKGROUNDS[me.bg].trait+": "+BACKGROUNDS[me.bg].tdesc:""}</span></p>
+    <p><span class="dim">Skills: ${(me.skills||[]).join(", ")||"—"}</span></p>
+    <p>${["str","dex","con","int","wis","cha"].map(k=>`<b>${k.toUpperCase()}</b> ${me.ab[k]} (${mod(me.ab[k])>=0?"+":""}${mod(me.ab[k])})`).join(" · ")}</p>
+    <p><b>${me.power.name}</b> — ${CLASSES[me.cls].power.desc} <em>${me.power.uses} remaining.</em></p>
+    <p>${me.inv.join(" · ")}${me.potions?` · ${me.potions} potions of healing`:""}</p>
+    <div class="navrow"><button class="ch" onclick="G.identity()">Rename / re-badge</button>
+    <button class="ch go" onclick="closeModal()"><b>Close</b></button></div>`);
+},
+
+help(){
+  modal(`<h3>How to play</h3>
+    <p>Press a button, or type. Typing recognises these as commands:</p>
+    <p style="color:var(--gold);font-size:13px">go · look · search · attack · cast · drink · rest ·
+       flee · hide · talk · pray · revive · wait · listen · inventory · use &lt;thing&gt;</p>
+    <p><b>Ask questions.</b> Anything ending in "?" — or starting with what / where / can / do I —
+       is answered from your actual character sheet. Costs no turn, rolls nothing.
+       Try <em>do I have magic abilities?</em> or <em>who is in the party?</em></p>
+    <p><b>The game will not guess at you.</b> Only the first real verb counts, negation is respected,
+       and unclear input is queried rather than mapped onto the nearest button. Every typed line shows
+       what was understood, greyed out beside it.</p>
+    <p>Anything the rules don't model goes to the <b>oracle</b> — a d6 ladder from <em>No, and</em>
+       to <em>Yes, and</em> plus an ability check matched to what you're attempting. It has real
+       consequences in both directions.</p>
+
+    <h3 style="margin-top:22px">Playing with friends</h3>
+    <p>Press <b>Play with friends</b>. One person hosts and reads out the four-letter code; up to
+       three others join with it. Connections are peer-to-peer — there is no server and nothing to pay for.</p>
+    <p><b>Your name and badge</b> can be changed any time — press the ✎ beside your name, or
+       open your character sheet. In a party, everyone sees the change immediately.</p>
+    <p><b>Table Talk</b> appears in the sidebar once you host or join — a chat line the whole
+       party sees, for planning without spending turns. Reloading the page does not create a
+       second character; you come back as yourself.</p>
+    <p>In a fight, turns go round the party. Between fights anyone may act. A character at 0 hit points
+       is down, not dead — spend a potion to get them up, or they rise at 1 hit point when the fighting
+       stops. Everyone dies only if everyone is down.</p>
+    <p style="font-size:13px;color:var(--dim)">The host runs the rules. Guests send what they want to do
+       and receive the result — they never roll, so a modified guest cannot cheat.</p>
+
+    <h3 style="margin-top:22px">Sound (optional)</h3>
+    <p>Hits, misses, heals, level-ups and the dice ceremony all have a short synthesized cue —
+       nothing to download, works fully offline. <b>Sound</b> in the top bar mutes it, and it
+       remembers your choice. It fires the same way for everyone in a party, since it reads off
+       what the narrator actually says.</p>
+    <p><b>Music</b> opens a small floating YouTube player for table music — paste a link (a
+       D&D ambient track, a lofi loop, anything). It's local to your own screen only; nobody
+       else in the party hears it, and it remembers your track between sessions. Collapse it
+       with <b>–</b> or stop it with <b>✕</b>.</p>
+
+    <h3 style="margin-top:22px">Local AI narration (optional)</h3>
+    <p>The game is complete without it. For richer prose install
+       <a href="https://ollama.com" style="color:var(--gold)">Ollama</a>, then run:</p>
+    <p><code>ollama pull llama3.2</code><br><code>OLLAMA_ORIGINS='*' ollama serve</code></p>
+    <p>Press <b>Connect local AI</b>. The model only rewrites text — every roll and outcome is decided
+       by the rules first. In multiplayer only the host needs it, and everyone sees the same prose.</p>
+    <p style="font-size:12px;color:var(--dim);margin-top:18px">Uses content from the SRD 5.2.1,
+       © Wizards of the Coast, licensed under CC-BY-4.0.</p>
+    <button class="ch" onclick="closeModal()">Close</button>`);
+},
+
+/* ---- mobile drawer ---- */
+drawer(force){
+  const s=document.getElementById("side"), sc=document.getElementById("scrim");
+  const open = force!==undefined ? force : !s.classList.contains("open");
+  s.classList.toggle("open", open);
+  sc.classList.toggle("on", open);
+},
+
+/* ---- multiplayer ---- */
+multiplayer(){
+  if(Net.mode!=="solo"){
+    modal(`<h3>${Net.mode==="host"?"You are hosting":"You have joined"}</h3>
+      <p>${Net.mode==="host"?`Room code <span id="code">${Net.code}</span> — read it out.`:`Connected to ${Net.code}.`}</p>
+      <p>${S.party.map(p=>`${p.name} the ${p.cls.toLowerCase()}`).join(" · ")}</p>
+      <button class="ch" onclick="closeModal()">Close</button>`);
+    return;
+  }
+  modal(`<h3>Play with friends</h3>
+    <p>Up to four of you. Peer-to-peer — no server, no account, nothing to pay for.
+       One person hosts; the others join with the code.</p>
+    <div class="pick">
+      <button class="ch" onclick="G.host()"><b>Host a party</b><br>
+        <span style="color:var(--dim);font-size:12px">You keep the character you have. You run the rules.</span></button>
+      <button class="ch" onclick="G.joinPrompt()"><b>Join with a code</b><br>
+        <span style="color:var(--dim);font-size:12px">Pick a class and drop into someone else's delve.</span></button>
+    </div>
+    <p style="font-size:12px;color:var(--dim)">This is the one part that needs the internet — it loads a
+       small peer-to-peer library. Solo play never touches the network.</p>
+    <button class="ch" onclick="closeModal()">Never mind</button>`);
+},
+
+async host(){
+  modal(`<h3>Opening a room…</h3><p class="sys">Loading the peer-to-peer library.</p>`);
+  try{
+    await loadPeer();
+    const code=Array.from({length:4},()=>"ABCDEFGHJKLMNPQRSTUVWXYZ"[R.int(24)]).join("");
+    Net.peer=new Peer("barrow-"+code, {debug:0});
+    Net.peer.on("open", ()=>{
+      Net.mode="host"; Net.code=code;
+      Chat.show();
+      document.getElementById("room").innerHTML=`hosting <span id="code">${code}</span>`;
+      document.getElementById("mpbtn").className="tb hot";
+      document.getElementById("mpbtn").textContent="Party: 1";
+      modal(`<h3>Room open</h3>
+        <p>Read this out to your friends:</p>
+        <p style="text-align:center"><span id="code" style="font-size:30px">${code}</span></p>
+        <p>They press <b>Play with friends → Join with a code</b> and type it in. Up to three others.</p>
+        <button class="ch" onclick="closeModal()">Start playing</button>`);
+    });
+    Net.peer.on("connection", (c)=>{
+      Net.conns.push(c);
+      c.on("data", (m)=>Net.hostReceive(m, c.peer));
+      c.on("close", ()=>{
+        const i=S.party.findIndex(p=>p.conn===c.peer);
+        if(i>0){ out(`<span class="sys">${PC(i).name} has gone quiet. They are on their own now.</span>`);
+                 PC(i).offline=true; }
+        Net.conns=Net.conns.filter(x=>x!==c);
+        document.getElementById("mpbtn").textContent="Party: "+(Net.conns.length+1);
+        sync(); G.choices();
+      });
+      c.on("open", ()=>{ document.getElementById("mpbtn").textContent="Party: "+(Net.conns.length+1); });
+    });
+    Net.peer.on("error", (e)=>G.netFail(e));
+  }catch(e){ G.netFail(e); }
+},
+
+joinPrompt(){
+  const me=ME();
+  modal(`<h3>Join a party</h3>
+    <p>Type the four-letter code. You go in as the character you have made —
+       you can change your name or badge once you are in.</p>
+    <p><input id="joincode" maxlength="4" placeholder="CODE"></p>
+    <div class="avprev">${avatarSVG(me,52)}
+      <div><b>${escHtml(me.name)}</b><br>
+      <span class="dim">${me.anc||""} ${me.cls.toLowerCase()}${me.bg?" · "+me.bg.toLowerCase():""}</span></div></div>
+    <div class="navrow">
+      <button class="ch" onclick="closeModal()">Never mind</button>
+      <button class="ch go" onclick="G.join()"><b>Join</b></button>
+    </div>`);
+},
+
+async join(){
+  if(G._joining) return;                    // double-click guard
+  G._joining=true; setTimeout(()=>G._joining=false, 4000);
+  const code=(document.getElementById("joincode").value||"").trim().toUpperCase();
+  if(code.length!==4){ document.getElementById("joincode").style.borderColor="var(--red)"; G._joining=false; return; }
+  modal(`<h3>Joining ${code}…</h3><p class="sys">Loading the peer-to-peer library.</p>`);
+  try{
+    await loadPeer();
+    Net.peer=new Peer({debug:0});
+    Net.peer.on("open", ()=>{
+      const c=Net.peer.connect("barrow-"+code, {reliable:true});
+      Net.hostConn=c;
+      c.on("open", ()=>{
+        Net.mode="guest"; Net.code=code;
+        Chat.show();
+        document.getElementById("room").innerHTML=`in <span id="code">${code}</span>`;
+        document.getElementById("mpbtn").className="tb hot";
+        document.getElementById("mpbtn").textContent="Joined";
+        document.getElementById("log").innerHTML="";
+        closeModal();
+        const me=ME();
+        c.send({t:"join", name:me.name, cls:me.cls, anc:me.anc, bg:me.bg,
+                av:me.av, pid:Net.pid()});
+      });
+      c.on("data", (m)=>Net.guestReceive(m));
+      c.on("close", ()=>{
+        out(`<span class="hurt">The host has gone. The session ends here.</span>`);
+        document.getElementById("choices").innerHTML="";
+      });
+      setTimeout(()=>{ if(Net.mode!=="guest") G.netFail(new Error("no answer")); }, 12000);
+    });
+    Net.peer.on("error", (e)=>G.netFail(e));
+  }catch(e){ G.netFail(e); }
+},
+
+netFail(e){
+  Net.mode="solo";
+  modal(`<h3>Could not connect</h3>
+    <p>${String(e&&e.type||e&&e.message||e||"unknown")}.</p>
+    <p>Peer-to-peer needs the internet and an open path between the two machines. Some
+       networks — office and school ones especially — block it. Common causes: the code was
+       mistyped, the host has not opened the room yet, or one of you is behind a strict firewall.</p>
+    <p style="font-size:13px;color:var(--dim)">Your solo game is untouched. Close this and keep playing.</p>
+    <button class="ch" onclick="closeModal(); G.choices()">Close</button>`);
+},
+
+/* ---- optional AI ---- */
+async tryOllama(loud){
+  try{
+    const res=await fetch("http://localhost:11434/api/tags",{signal:AbortSignal.timeout(2500)});
+    const j=await res.json();
+    if(!j.models || !j.models.length) throw new Error("no models");
+    const pref=j.models.find(m=>/llama3|qwen|mistral|gemma|phi/i.test(m.name)) || j.models[0];
+    Narrator.ollama=true; Narrator.model=pref.name;
+    dot("on"); aitxt("Narrator: "+pref.name.split(":")[0]);
+    if(loud) out(`<span class="sys">Local narrator connected — ${pref.name}. Rules are still decided by the game.</span>`);
+  }catch(e){
+    Narrator.ollama=false; dot(""); aitxt("Narrator: built-in");
+    if(loud) modal(`<h3>No local model found</h3>
+      <p>The game runs fine without one — this only changes how the prose reads.</p>
+      <p>Install <a href="https://ollama.com" style="color:var(--gold)">Ollama</a> and run:</p>
+      <p><code>ollama pull llama3.2</code><br><code>OLLAMA_ORIGINS='*' ollama serve</code></p>
+      <p style="font-size:13px;color:var(--dim)">The <code>OLLAMA_ORIGINS</code> part matters — without it
+      the browser blocks this page from reaching Ollama.</p>
+      <button class="ch" onclick="closeModal()">Close</button>`);
+  }
+},
+
+/* ---- persistence ---- */
+save(){
+  const blob=new Blob([JSON.stringify(S)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`${ME().name.toLowerCase()}-barrow-save.json`; a.click();
+  try{ localStorage.setItem("barrow", JSON.stringify(S)); }catch(e){}
+  out(`<span class="sys">Saved.</span>`);
+},
+load(input){
+  const f=input.files[0]; if(!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{
+      const d=JSON.parse(fr.result);
+      if(!d.party || !d.party[0] || !d.party[0].anc) throw new Error("old save");
+      S=d; S.me=Math.min(S.me||0, S.party.length-1);
+      closeModal();
+      document.getElementById("log").innerHTML="";
+      out(`<span class="sys">Save restored — ${S.party.map(p=>`${p.name} (${p.lvl})`).join(", ")}.</span>`);
+      G.describeRoom(false); sync();
+    }catch(e){ out(`<span class="hurt">That file could not be read${/old save/.test(e.message)?" — it is from an older version":""}.</span>`); }
+  };
+  fr.readAsText(f); input.value="";
+}
+};
+
+/* ------------------------------------------------------------ helpers --- */
+function loadPeer(){
+  return new Promise((res,rej)=>{
+    if(window.Peer) return res();
+    const s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js";
+    s.onload=()=>res(); s.onerror=()=>rej(new Error("could not load the peer library"));
+    document.head.appendChild(s);
+  });
+}
+const escHtml=(s)=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const escAttr=escHtml;
+// One place decides what a legal name is, so host and client can never disagree.
+function cleanName(s){
+  return String(s==null?"":s).replace(/[<>&"]/g,"").replace(/\s+/g," ").trim().slice(0,16);
+}
+function uniqueName(name, exceptIdx){
+  let n=name, i=2;
+  const taken=()=>S.party.some((p,ix)=>ix!==exceptIdx && p.name.toLowerCase()===n.toLowerCase());
+  while(taken() && i<40){ n=name.slice(0,14)+" "+i; i++; }
+  return n;
+}
+function bumpText(bump, cls){
+  const prime=CLASSES[cls]?CLASSES[cls].prime:"str";
+  return Object.entries(bump).map(([k,v])=>
+    `+${v} ${(k==="prime"?prime:k).toUpperCase()}`).join(", ");
+}
+function dot(cls){ document.getElementById("dot").className=cls; }
+function aitxt(t){ document.getElementById("aitxt").textContent=t; }
+function modal(html){ document.getElementById("mbox").innerHTML=html; document.getElementById("modal").classList.add("show"); }
+function closeModal(){ document.getElementById("modal").classList.remove("show"); }
+
+function sync(){
+  if(!S || !S.party) return;
+  const me=ME();
+
+  const multi=S.party.length>1;
+  document.getElementById("partybox").style.display = multi ? "" : "none";
+  const mp=document.getElementById("mobparty");
+  mp.classList.toggle("on", multi);
+  if(multi){
+    mp.innerHTML=S.party.map((p,i)=>{
+      const cls=["mp", i===S.me?"me":"", (S.fight&&S.active===i)?"act":"", p.down?"down":""].join(" ");
+      return `<div class="${cls}">${avatarSVG(p,18)}<b>${escHtml(p.name)}${i===S.me?" ·you":""}</b>
+        <div class="hb"><i style="width:${Math.max(0,100*p.hp/p.hpMax)}%"></i></div></div>`;
+    }).join("");
+  }
+  if(multi){
+    document.getElementById("party").innerHTML=S.party.map((p,i)=>{
+      const cls=["pc", i===S.me?"me":"", (S.fight&&S.active===i)?"act":"", p.down?"down":""].join(" ");
+      return `<div class="${cls}">
+        <div class="nm">${avatarSVG(p,26)}<b>${escHtml(p.name)}${i===S.me?" (you)":""}</b><s>${p.down?"down":p.cls}</s></div>
+        <div class="hb"><i style="width:${Math.max(0,100*p.hp/p.hpMax)}%"></i></div>
+      </div>`;
+    }).join("");
+  }
+
+  document.getElementById("pcname").innerHTML=
+    `${avatarSVG(me,30)}<span>${escHtml(me.name)}</span>
+     <button class="tb pen" onclick="G.identity()" title="Rename or re-badge">✎</button>`;
+  document.getElementById("pcclass").textContent =
+    `level ${me.lvl} ${(me.anc||"").toLowerCase()} ${me.cls.toLowerCase()}${me.bg?" · "+me.bg.toLowerCase():""}`;
+  document.getElementById("hp").textContent=`${me.hp} / ${me.hpMax}`;
+  document.getElementById("hpbar").style.width=Math.max(0,100*me.hp/me.hpMax)+"%";
+  document.getElementById("ac").textContent=me.ac;
+  document.getElementById("lvl").textContent=me.lvl;
+  document.getElementById("xp").textContent=me.xp;
+  document.getElementById("abils").innerHTML=["str","dex","con","int","wis","cha"].map(k=>{
+    const v=me.ab[k];
+    return `<div class="ab"><s>${k.toUpperCase()}</s><b>${v}</b><u>${mod(v)>=0?"+":""}${mod(v)}</u></div>`;
+  }).join("");
+  document.getElementById("inv").innerHTML=me.inv.map(i=>`<div class="item">${i}</div>`).join("")
+    + (me.potions>0?`<div class="item">Potions of Healing <em>×${me.potions}</em></div>`:"");
+  document.getElementById("quest").innerHTML=S.journal.map(q=>`<div class="item">${q}</div>`).join("")
+    + `<div class="item"><em>Depth ${S.at+1} of ${S.map.length}</em></div>`
+    + (S.flags.crown?`<div class="item" style="color:var(--gold)">${DUNGEONS[S.dun].prize} is carried.</div>`:"");
+
+  autosave();
+}
+
+// Silent continuous save so a reload (or a closed tab) never costs the run —
+// the "Save" button still exists for an explicit downloadable copy, but
+// progress no longer depends on remembering to press it.
+function autosave(){
+  if(!S || !S.party) return;
+  try{ localStorage.setItem("barrow", JSON.stringify(S)); }catch(e){}
+}
+
+/* ------------------------------------------------------------- wiring --- */
+// Auto-focusing the text field pops the keyboard on every turn on a phone.
+// Only do it where a hardware keyboard is the norm.
+const WANT_FOCUS = window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches;
+function focusTxt(){ if(WANT_FOCUS) document.getElementById("txt").focus(); }
+
+function submit(){
+  const t=document.getElementById("txt");
+  const v=t.value.trim(); if(!v||!S) return;
+  if(S.flags.dead||S.flags.won) return;
+  t.value="";
+  const p=parse(v); if(!p) return;
+  G.pending=p.raw; G.pendingItem=p.item||null;
+
+  const tag = p.action==="ask"      ? `<span style="color:var(--dim)"> · unclear</span>`
+            : p.action==="query"    ? `<span style="color:var(--dim)"> · asking</span>`
+            : p.action==="noSuch"   ? `<span style="color:var(--dim)"> · you have no such thing</span>`
+            : p.action==="freeform" ? `<span style="color:var(--purple)"> · the barrow decides${p.item?` (${p.item.toLowerCase()})`:""}</span>`
+            : `<span style="color:var(--dim)"> · ${actionLabel(p.action)}</span>`;
+  out(`<span class="you">${S.party.length>1?ME().name+": ":""}${v.replace(/</g,"&lt;")}</span>${tag}`);
+
+  if(p.action==="ask"){ G.clarify(p.note, p.alts); return; }
+  G.attempt(p.action, p.raw, p.target);
+}
+document.getElementById("go").onclick=submit;
+document.getElementById("chatgo").onclick=()=>Chat.send();
+document.getElementById("chattxt").addEventListener("keydown",e=>{
+  if(e.key==="Enter") Chat.send();
+  e.stopPropagation();
+});
+document.getElementById("txt").addEventListener("keydown",e=>{ if(e.key==="Enter") submit(); });
+document.getElementById("modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
+
+G.start();
+</script>
+</body>
+</html>
