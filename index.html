@@ -281,8 +281,8 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
   <button class="tb hot" id="sfxbtn" onclick="G.toggleSfx()">🔊 Sound: On</button>
   <button class="tb" id="musicbtn" onclick="Music.open()">🎵 Music</button>
   <button class="tb" id="mpbtn" onclick="G.multiplayer()">Play with friends</button>
-  <button class="tb" onclick="G.tryOllama(true)">Connect local AI</button>
-  <button class="tb" onclick="G.tryCloud(true)">Connect cloud AI</button>
+  <button class="tb" id="localaibtn" onclick="G.tryOllama(true)">Connect local AI</button>
+  <button class="tb" id="cloudaibtn" onclick="G.tryCloud(true)">Connect cloud AI</button>
   <button class="tb" onclick="G.save()">Save</button>
   <button class="tb" onclick="document.getElementById('file').click()">Load</button>
   <button class="tb" onclick="G.help()">Help</button>
@@ -1220,7 +1220,7 @@ Scene: ${context||"the barrow"}.`;
       const j=await res.json();
       return (j.response||"").trim();
     }catch(err){
-      Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in");
+      Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in"); updateAiButtons();
       return null;
     }
   },
@@ -1242,7 +1242,7 @@ Scene: ${context||"the barrow"}.`;
       const j=await res.json();
       return (j.text||"").trim() || null;
     }catch(err){
-      Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in");
+      Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in"); updateAiButtons();
       return null;
     }
   }
@@ -3009,11 +3009,11 @@ async tryOllama(loud){
     const j=await res.json();
     if(!j.models || !j.models.length) throw new Error("no models");
     const pref=j.models.find(m=>/llama3|qwen|mistral|gemma|phi/i.test(m.name)) || j.models[0];
-    Narrator.ollama=true; Narrator.model=pref.name;
-    dot("on"); aitxt("Narrator: "+pref.name.split(":")[0]);
+    Narrator.ollama=true; Narrator.backend="local"; Narrator.model=pref.name;
+    dot("on"); aitxt("Narrator: "+pref.name.split(":")[0]); updateAiButtons();
     if(loud) out(`<span class="sys">Local narrator connected — ${pref.name}. Rules are still decided by the game.</span>`);
   }catch(e){
-    Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in");
+    Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in"); updateAiButtons();
     if(loud) modal(`<h3>No local model found</h3>
       <p>The game runs fine without one — this only changes how the prose reads.</p>
       <p>Install <a href="https://ollama.com" style="color:var(--gold)">Ollama</a> and run:</p>
@@ -3042,10 +3042,10 @@ async tryCloud(loud){
       throw new Error(j.error||("bad status "+res.status));
     }
     Narrator.ollama=true; Narrator.backend="cloud"; Narrator.model="groq";
-    dot("on"); aitxt("Narrator: cloud (groq)");
+    dot("on"); aitxt("Narrator: cloud (groq)"); updateAiButtons();
     if(loud) out(`<span class="sys">Cloud narrator connected. Rules are still decided by the game.</span>`);
   }catch(e){
-    Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in");
+    Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in"); updateAiButtons();
     if(loud) modal(`<h3>Cloud narrator unavailable</h3>
       <p>The game runs fine without one — this only changes how the prose reads.</p>
       <p>This needs two things: the game running on its real hosted address (not opened as a local
@@ -3111,6 +3111,22 @@ function bumpText(bump, cls){
 }
 function dot(cls){ document.getElementById("dot").className=cls; }
 function aitxt(t){ document.getElementById("aitxt").textContent=t; }
+// The two "Connect ... AI" toolbar buttons double as status: whichever
+// backend is actually active reads "connected" and picks up the same gold
+// "hot" styling the dice/sound toggles use, so it's not just the small dot
+// up top that says something's on. Called from both connect paths (success
+// and failure) and from the mid-game reset when a call fails partway
+// through, so the buttons never go stale relative to Narrator's real state.
+function updateAiButtons(){
+  const lb=document.getElementById("localaibtn"), cb=document.getElementById("cloudaibtn");
+  if(!lb || !cb) return;
+  const activeLocal = Narrator.ollama && Narrator.backend==="local";
+  const activeCloud = Narrator.ollama && Narrator.backend==="cloud";
+  lb.textContent = activeLocal ? "Local AI connected" : "Connect local AI";
+  lb.classList.toggle("hot", activeLocal);
+  cb.textContent = activeCloud ? "Cloud AI connected" : "Connect cloud AI";
+  cb.classList.toggle("hot", activeCloud);
+}
 function modal(html){ document.getElementById("mbox").innerHTML=html; document.getElementById("modal").classList.add("show"); }
 function closeModal(){ document.getElementById("modal").classList.remove("show"); }
 
