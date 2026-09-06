@@ -282,6 +282,7 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
   <button class="tb" id="musicbtn" onclick="Music.open()">🎵 Music</button>
   <button class="tb" id="mpbtn" onclick="G.multiplayer()">Play with friends</button>
   <button class="tb" onclick="G.tryOllama(true)">Connect local AI</button>
+  <button class="tb" onclick="G.tryCloud(true)">Connect cloud AI</button>
   <button class="tb" onclick="G.save()">Save</button>
   <button class="tb" onclick="document.getElementById('file').click()">Load</button>
   <button class="tb" onclick="G.help()">Help</button>
@@ -1076,7 +1077,13 @@ function levelUp(pc, e, i){
 
 /* ------------------------------------------------------------ narrator --- */
 const Narrator = {
-  ollama:false, model:null,
+  // "ollama" is the master on/off switch (kept under its original name so
+  // every existing call site — render()'s gate, the reset-on-failure spots —
+  // needs no change); "backend" says which fetch ask() should make when it's
+  // on. "local" is the original localhost:11434 Ollama call; "cloud" is the
+  // same idea via this repo's own /api/narrate serverless function, for
+  // anyone who doesn't want to run a model on their own machine.
+  ollama:false, backend:null, model:null,
 
   nm(i){ return S.party.length>1 ? `<span class="who">${PC(i).name}</span>` : "You"; },
   nmL(i){ return S.party.length>1 ? `<span class="who">${PC(i).name}</span>` : "you"; },
@@ -1157,6 +1164,7 @@ const Narrator = {
   },
 
   async ask(text, context){
+    if(Narrator.backend==="cloud") return Narrator.askCloud(text, context);
     try{
       const sys=`You are narrating a grim, restrained fantasy dungeon crawl.
 You will be given the MECHANICAL OUTCOME of a turn. It is already final and true.
@@ -1173,7 +1181,29 @@ Scene: ${context||"the barrow"}.`;
       const j=await res.json();
       return (j.response||"").trim();
     }catch(err){
-      Narrator.ollama=false; dot(""); aitxt("Narrator: built-in");
+      Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in");
+      return null;
+    }
+  },
+
+  // Same contract as ask()'s local branch — hand over the finished outcome,
+  // get back 2-3 sentences of prose — just routed through this repo's own
+  // /api/narrate function instead of a model on the player's own machine.
+  // That function is same-origin, so this only ever has a chance of working
+  // once the game is actually running on its hosted address; opened as a
+  // local file it will simply fail and fall back, same as a missing Ollama.
+  async askCloud(text, context){
+    try{
+      const res=await fetch("/api/narrate",{
+        method:"POST", headers:{"Content-Type":"application/json", "x-barrow-key":"barrow-of-vethkar"},
+        body:JSON.stringify({text:text.replace(/<[^>]+>/g,""), context:context||"the barrow"}),
+        signal:AbortSignal.timeout(9000)
+      });
+      if(!res.ok) throw new Error("bad status "+res.status);
+      const j=await res.json();
+      return (j.text||"").trim() || null;
+    }catch(err){
+      Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in");
       return null;
     }
   }
@@ -2750,12 +2780,16 @@ help(){
        else in the party hears it, and it remembers your track between sessions. Collapse it
        with <b>–</b> or stop it with <b>✕</b>.</p>
 
-    <h3 style="margin-top:22px">Local AI narration (optional)</h3>
-    <p>The game is complete without it. For richer prose install
+    <h3 style="margin-top:22px">AI narration (optional)</h3>
+    <p>The game is complete without either of these. Both only rewrite the prose — every roll and
+       outcome is decided by the rules first, and in multiplayer only the host needs one connected;
+       everyone else just sees the same reworded text.</p>
+    <p><b>Connect local AI</b> talks to a model on your own machine. Install
        <a href="https://ollama.com" style="color:var(--gold)">Ollama</a>, then run:</p>
     <p><code>ollama pull llama3.2</code><br><code>OLLAMA_ORIGINS='*' ollama serve</code></p>
-    <p>Press <b>Connect local AI</b>. The model only rewrites text — every roll and outcome is decided
-       by the rules first. In multiplayer only the host needs it, and everyone sees the same prose.</p>
+    <p><b>Connect cloud AI</b> is the no-install option — it uses this deployment's own
+       narration function instead, and only works once the game is running on its real hosted
+       address rather than opened as a local file.</p>
     <p style="font-size:12px;color:var(--dim);margin-top:18px">Uses content from the SRD 5.2.1,
        © Wizards of the Coast, licensed under CC-BY-4.0.</p>
     <button class="ch" onclick="closeModal()">Close</button>`);
@@ -2908,13 +2942,44 @@ async tryOllama(loud){
     dot("on"); aitxt("Narrator: "+pref.name.split(":")[0]);
     if(loud) out(`<span class="sys">Local narrator connected — ${pref.name}. Rules are still decided by the game.</span>`);
   }catch(e){
-    Narrator.ollama=false; dot(""); aitxt("Narrator: built-in");
+    Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in");
     if(loud) modal(`<h3>No local model found</h3>
       <p>The game runs fine without one — this only changes how the prose reads.</p>
       <p>Install <a href="https://ollama.com" style="color:var(--gold)">Ollama</a> and run:</p>
       <p><code>ollama pull llama3.2</code><br><code>OLLAMA_ORIGINS='*' ollama serve</code></p>
       <p style="font-size:13px;color:var(--dim)">The <code>OLLAMA_ORIGINS</code> part matters — without it
       the browser blocks this page from reaching Ollama.</p>
+      <button class="ch" onclick="closeModal()">Close</button>`);
+  }
+},
+
+// Same idea as tryOllama, but for anyone who doesn't want to run a model
+// locally: this pings the game's own /api/narrate function, which (when
+// deployed with a Groq key configured) rewords prose via Groq's free tier
+// instead of a local Ollama instance. Only works once the game is running
+// on its real hosted address — a same-origin function doesn't exist for a
+// page opened as a local file.
+async tryCloud(loud){
+  try{
+    const res=await fetch("/api/narrate",{
+      method:"POST", headers:{"Content-Type":"application/json", "x-barrow-key":"barrow-of-vethkar"},
+      body:JSON.stringify({text:"A quiet chamber, nothing more.", context:"a connection check"}),
+      signal:AbortSignal.timeout(9000)
+    });
+    if(!res.ok){
+      const j=await res.json().catch(()=>({}));
+      throw new Error(j.error||("bad status "+res.status));
+    }
+    Narrator.ollama=true; Narrator.backend="cloud"; Narrator.model="groq";
+    dot("on"); aitxt("Narrator: cloud (groq)");
+    if(loud) out(`<span class="sys">Cloud narrator connected. Rules are still decided by the game.</span>`);
+  }catch(e){
+    Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in");
+    if(loud) modal(`<h3>Cloud narrator unavailable</h3>
+      <p>The game runs fine without one — this only changes how the prose reads.</p>
+      <p>This needs two things: the game running on its real hosted address (not opened as a local
+         file), and a Groq API key set as this deployment's <code>GROQ_API_KEY</code> environment
+         variable. If you just set that up, redeploy and try again.</p>
       <button class="ch" onclick="closeModal()">Close</button>`);
   }
 },
