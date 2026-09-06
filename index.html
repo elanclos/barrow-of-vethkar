@@ -492,6 +492,16 @@ const T = {
     "the air turns suddenly, bitterly cold","a name is spoken quietly, and it is yours",
     "an old wound aches sharply","the way you came looks subtly wrong"
   ],
+  // Ambient, unattributed unease for Traitor Mode — never names anyone, never
+  // confirms anything. The point is a shiver, not a clue.
+  traitorHint:[
+    "Something about tonight doesn't sit right.",
+    "More than one of you glances at the others, just for a moment, and then looks away.",
+    "A silence lingers half a beat too long before someone breaks it.",
+    "Someone's step falters, just once, on the stair behind you.",
+    "You cannot say why, but you count heads without meaning to.",
+    "The lantern-light catches on a face wrong, just for an instant."
+  ],
   found:["a handful of tarnished coins","a scrap of oilcloth","a broken arrowhead",
          "a child's carved wooden bird","a rusted key that fits nothing here",
          "a signet ring, the crest filed off","a bundle of dry herbs, still fragrant",
@@ -694,8 +704,11 @@ const PC   = (i)=> S.party[i];
 // Both skip a turn, but only "down" (checked against real hp, not this flag)
 // can end the run — conflating the two used to let a disconnect during a
 // fight declare the whole party dead while people still had hit points.
-const conscious = ()=> S.party.map((p,i)=>i).filter(i=>!S.party[i].down && !S.party[i].offline);
-const partyWiped = ()=> S.party.every(p=>p.hp<=0);
+// A traitor who has been revealed as the hidden final boss is no longer a
+// living ally — excluded from both whose-turn-is-it and is-everyone-dead,
+// the same way "down"/"offline" already are.
+const conscious = ()=> S.party.map((p,i)=>i).filter(i=>!S.party[i].down && !S.party[i].offline && !S.party[i].isBoss);
+const partyWiped = ()=> S.party.filter(p=>!p.isBoss).every(p=>p.hp<=0);
 
 function rollAbilities(prime){
   const rolls=[];
@@ -748,8 +761,22 @@ function newWorld(pc, dun){
     at:0, map:makeMap(dun), fight:null,
     flags:{crown:false, dead:false, won:false, waking:false},
     journal:[DUNGEONS[dun].task],
-    log:[]
+    log:[],
+    // Traitor Mode — off by default. `idx`/`secretName` are the whole secret;
+    // everything that keeps them hidden from other players lives in how the
+    // network layer redacts this object before it goes out (see redactTraitor).
+    traitor:{active:false, idx:null, secretName:null, revealed:false,
+             sabotageLeft:0, aidLeft:0, strikesLeft:0}
   };
+}
+// Old saves/joins from before Traitor Mode existed won't have this field —
+// every place that adopts a state object from outside (load, resume, a
+// guest's incoming "state" message) calls this first so nothing downstream
+// has to null-check S.traitor.
+function ensureTraitorField(state){
+  if(!state.traitor) state.traitor={active:false, idx:null, secretName:null, revealed:false,
+                                     sabotageLeft:0, aidLeft:0, strikesLeft:0};
+  return state;
 }
 
 function makeMap(dun){
@@ -1061,7 +1088,7 @@ const Narrator = {
       case "hit":
         if(e.vs!=="mob"){
           const pc=PC(e.vs);
-          return `<span class="hurt">${e.who} ${e.crit?"catches":"connects with"} ${N.nmL(e.vs)}</span> — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac}`)} — <b>${e.dmg}</b> damage${pc.hp===0?` — <span class="hurt">and ${pc.name} goes down.</span>`:"."}`;
+          return `<span class="hurt">${e.who} ${e.crit?"catches":"connects with"} ${N.nmL(e.vs)}</span>${e.auto?"":` — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac}`)}`} — <b>${e.dmg}</b> damage${pc.hp===0?` — <span class="hurt">and ${pc.name} goes down.</span>`:"."}`;
         }
         return `<span class="hit">${N.poss(e.src)} ${e.wpn} lands${e.crit?" — a clean, ugly hit":""}${e.adv?" (from the blind side)":""}${e.sneak?` (+${e.sneak} blind side)`:""}${e.bonus?` (+${e.bonus})`:""}${e.lucky?` <em>— second look</em>`:""}</span>${e.auto?"":` — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac||(S.fight&&S.fight.ac)||"—"}`)}`} — <b>${e.dmg}</b> damage.`;
       case "miss":
@@ -1389,6 +1416,22 @@ function parse(text){
 /* ----------------------------------------------------------------- net --- */
 /* Host-authoritative. Guests send intents; they never roll anything.
    The transport is pluggable so the protocol can be tested without a network. */
+
+// The only place Traitor Mode's secrecy is actually enforced. The host's own
+// local S always has the real idx/secretName — this only matters for what
+// gets serialized into a message bound for a given connection. Everyone
+// gets to know a traitor exists (S.traitor.active) and whether it's over
+// (S.traitor.revealed); only the traitor's own connection ever gets to see
+// *who*, before the reveal makes it moot for everyone.
+function redactTraitor(state, forIdx){
+  const clone=JSON.parse(JSON.stringify(state));
+  if(clone.traitor && clone.traitor.active && !clone.traitor.revealed && clone.traitor.idx!==forIdx){
+    clone.traitor.idx=null;
+    clone.traitor.secretName=null;
+  }
+  return clone;
+}
+
 const Net = {
   mode:"solo",          // solo | host | guest
   code:null, peer:null, conns:[], hostConn:null, myIdx:0,
@@ -1430,7 +1473,7 @@ const Net = {
           if(pc.down && pc.hp<=0 && !S.fight){ pc.down=false; pc.hp=1; }
           Net.transport.to(connId,{t:"you", idx:back});
           // recap first, so it lands above the "finds the way back" line
-          Net.transport.to(connId, {t:"state", S:JSON.parse(JSON.stringify(S)), lines:introLines()});
+          Net.transport.to(connId, {t:"state", S:redactTraitor(S, back), lines:introLines()});
           if(Music.url) Net.transport.to(connId, {t:"music", url:Music.url, from:Music.fromName});
           BUF = Net.mode==="host" ? [] : null;
           out(`<span class="sys">${pc.name} finds the way back to the party.</span>`);
@@ -1454,7 +1497,7 @@ const Net = {
       S.party.push(pc);
       Net.transport.to(connId,{t:"you", idx:S.party.length-1});
       // recap first, so it lands above the "comes down the steps" line
-      Net.transport.to(connId, {t:"state", S:JSON.parse(JSON.stringify(S)), lines:introLines()});
+      Net.transport.to(connId, {t:"state", S:redactTraitor(S, S.party.length-1), lines:introLines()});
       if(Music.url) Net.transport.to(connId, {t:"music", url:Music.url, from:Music.fromName});
       BUF = Net.mode==="host" ? [] : null;
       out(`<span class="sys">${pc.name} the ${pc.cls.toLowerCase()} comes down the steps.</span>`);
@@ -1462,7 +1505,7 @@ const Net = {
       sync(); G.choices();
       return;
     }
-    if(msg.t==="rename" || msg.t==="avatar"){
+    if(msg.t==="rename" || msg.t==="avatar" || msg.t==="traitorname"){
       const idx=S.party.findIndex(p=>p.conn===connId);
       if(idx<0) return;
       Net.applyIdentity(idx, msg.t, msg);
@@ -1511,6 +1554,13 @@ const Net = {
       sync();
       if(Net.mode==="host"){ Net.push(); BUF=null; }
     }
+    if(kind==="traitorname"){
+      // Only the real traitor's own claim can ever set this — a forged
+      // message from anyone else silently does nothing.
+      if(!S.traitor || idx!==S.traitor.idx) return;
+      S.traitor.secretName=cleanName(msg.name)||"The Unmasked";
+      if(Net.mode==="host"){ BUF=[]; Net.push(); BUF=null; }
+    }
   },
 
   /* ---- guest side ---- */
@@ -1524,22 +1574,27 @@ const Net = {
     }
     if(msg.t==="chat"){ Chat.line(msg.from, msg.text); return; }
     if(msg.t==="music"){ Music.receiveShare(msg.url, msg.from); return; }
+    if(msg.t==="traitorPick"){ G.traitorNameModal(); return; }
     if(msg.t==="full"){ modal(`<h3>That party is full</h3><p>Four is the limit.</p>
       <button class="ch" onclick="closeModal()">Close</button>`); return; }
     if(msg.t==="state"){
-      S=msg.S; S.me=Net.myIdx;
+      S=ensureTraitorField(msg.S); S.me=Net.myIdx;
       (msg.lines||[]).forEach(l => l.k==="h" ? scene(l.html) : out(l.html, true));
       sync(); G.choices();
       if(S.flags.dead) G.death(); else if(S.flags.won) G.victory();
     }
   },
 
-  // Host broadcasts full state plus whatever prose was produced. Guests are thin
-  // clients: identical state, identical text, no divergence possible.
+  // Host sends state plus whatever prose was produced — identical text to
+  // everyone, but the state itself is redacted per-recipient so Traitor
+  // Mode's one secret never rides along on the broadcast (see redactTraitor).
   push(){
     if(Net.mode!=="host") return;
     const lines=BUF||[];
-    Net.transport.broadcast({t:"state", S:JSON.parse(JSON.stringify(S)), lines});
+    Net.conns.forEach(c=>{
+      const idx=S.party.findIndex(p=>p.conn===c.peer);
+      try{ c.send({t:"state", S:redactTraitor(S, idx), lines}); }catch(e){}
+    });
   },
 
   send(action, arg, target){ Net.transport.toHost({t:"intent", action, arg, target}); }
@@ -1903,7 +1958,7 @@ newGame(){
 resumeSave(){
   try{
     const d=JSON.parse(localStorage.getItem("barrow"));
-    S=d; S.me=Math.min(S.me||0, S.party.length-1);
+    S=ensureTraitorField(d); S.me=Math.min(S.me||0, S.party.length-1);
     closeModal();
     document.getElementById("log").innerHTML="";
     out(`<span class="sys">Picking up where you left off — ${S.party.map(p=>`${p.name} (${p.lvl})`).join(", ")}.</span>`);
@@ -2087,6 +2142,9 @@ describeRoom(first){
     out(`<span class="sys">You hear ${R.pick(T.sound)}.</span>`);
     S.acted=[]; S.active=conscious()[0]??0;
   }
+  // A rare, unattributed shiver — never enough to point at anyone.
+  if(S.traitor && S.traitor.active && !S.traitor.revealed && S.party.length>1 && R.d(6)===1)
+    out(`<span class="sys">${R.pick(T.traitorHint)}</span>`);
   G.choices();
 },
 
@@ -2158,7 +2216,10 @@ attempt(action, arg, target){
 /* ---- the authoritative turn ---- */
 async perform(a, action, arg, target){
   if(!S || S.flags.dead || S.flags.won) return;
-  const FREEBIES=["query","inv","cmds","look","listen","noSuch"];
+  // darkstrike is here too: the revealed traitor isn't in the turn order
+  // any more (conscious() excludes them), so it needs the same exemption
+  // from both the busy-lock and the "wait your turn" check below.
+  const FREEBIES=["query","inv","cmds","look","listen","noSuch","darkstrike"];
   // A turn can take a few seconds to settle (an awaited local-AI narration
   // call, say) — without this guard, an impatient second click or keypress
   // before it does would run a second perform() concurrently with the
@@ -2277,6 +2338,40 @@ async perform(a, action, arg, target){
       G.pendingItem=null; spent=true;
       if(ev[0] && !ev[0].o.yes && ev[0].roll.fumble) ev.push({t:"note", text:`And then ${Oracle.twist()}.`});
       break;
+
+    // ---- traitor mode: secret actions, visible only on the traitor's own
+    // screen. Both reuse ordinary event types (scrape/heal) so the shared
+    // log reads as plain bad luck or a lucky break — nothing points at
+    // anyone, which is the entire point.
+    case "traitorSabotage": {
+      if(!S.traitor || S.traitor.idx!==a || (S.traitor.sabotageLeft||0)<=0) break;
+      S.traitor.sabotageLeft--;
+      const others=S.party.map((p,i)=>i).filter(i=>i!==a && !PC(i).down && !PC(i).isBoss);
+      if(others.length){ const t=R.pick(others); ev=[{t:"scrape", vs:t, dmg:R.d(4)+1}]; }
+      spent=true; break;
+    }
+    case "traitorAid": {
+      if(!S.traitor || S.traitor.idx!==a || (S.traitor.aidLeft||0)<=0) break;
+      S.traitor.aidLeft--;
+      const hurt=S.party.map((p,i)=>i).filter(i=>!PC(i).down && !PC(i).isBoss && PC(i).hp<PC(i).hpMax);
+      if(hurt.length){ const t=R.pick(hurt); ev=[{t:"heal", vs:t, amt:R.d(6)+2}]; }
+      else ev=[{t:"edge", vs:a}];
+      spent=true; break;
+    }
+    // The revealed traitor's bonus move — off the normal turn cycle
+    // entirely (see FREEBIES above), on top of the engine's own automatic
+    // attack each round. Reuses the ordinary "hit" event so it narrates
+    // exactly like any other blow landing.
+    case "darkstrike": {
+      if(!S.fight || !S.traitor || !S.traitor.revealed || S.traitor.idx!==a || (S.traitor.strikesLeft||0)<=0) break;
+      S.traitor.strikesLeft--;
+      const targets=conscious();
+      if(targets.length){
+        const t=R.pick(targets);
+        ev=[{t:"hit", src:"mob", vs:t, who:S.fight.name, dmg:R.dice(2,6)+3, crit:false, auto:true}];
+      }
+      spent=false; break;
+    }
   }
 
   if(ev.length){
@@ -2305,7 +2400,10 @@ async resolve(a, ev, spent){
     const up=S.party.filter(p=>p.down);
     if(up.length){ up.forEach(p=>{ p.down=false; p.hp=1; });
       out(`<span class="hit">${up.map(p=>p.name).join(" and ")} get${up.length>1?"":"s"} hauled upright — one hit point and a bad hour ahead.</span>`); }
-    if(boss) out(`<span class="hit">The crown is unguarded now.</span>`);
+    if(boss){
+      if(S.traitor && S.traitor.active && !S.traitor.revealed) G.revealTraitor();
+      else out(`<span class="hit">The crown is unguarded now.</span>`);
+    }
   }
 
   if(ev.some(e=>e.t==="wandering"||e.t==="noise") && !S.fight){
@@ -2371,6 +2469,86 @@ async resolve(a, ev, spent){
 
 finish(){ if(Net.mode==="host"){ Net.push(); BUF=null; } },
 
+/* ---- traitor mode ----------------------------------------------------
+   The one piece of hidden information the engine has ever needed to keep:
+   who the traitor is, and what they've named the thing they'll become.
+   Both live in S.traitor so they save/load/resume exactly like everything
+   else — the secrecy isn't "don't put it in state", it's "redact it before
+   it goes out over the wire to anyone but the traitor themselves"
+   (see redactTraitor, and Net.push). Locally, every render checks
+   S.traitor.idx===S.me before showing anything traitor-related, so a
+   guest's own screen can never leak someone else's role even though the
+   host's full S technically knows it. */
+toggleTraitorMode(){
+  if(Net.mode==="guest" || !S) return;
+  ensureTraitorField(S);
+  BUF = Net.mode==="host" ? [] : null;
+  if(S.traitor.active){
+    if(S.traitor.revealed){ out(`<span class="sys">Too late for that now.</span>`); }
+    else{
+      S.traitor.active=false; S.traitor.idx=null; S.traitor.secretName=null;
+      out(`<span class="sys">Traitor Mode is off.</span>`);
+    }
+  } else {
+    if(S.party.length<2){ out(`<span class="sys">Needs at least two in the party for that.</span>`); }
+    else{
+      S.traitor.active=true; S.traitor.revealed=false; S.traitor.secretName=null;
+      S.traitor.idx=R.int(S.party.length);
+      S.traitor.sabotageLeft=3; S.traitor.aidLeft=3; S.traitor.strikesLeft=3;
+      out(`<span class="sys">Traitor Mode is on. Something has changed among you, though nothing shows on any face.</span>`);
+    }
+  }
+  sync(); G.choices();
+  if(Net.mode==="host"){ Net.push(); BUF=null; }
+  if(S.traitor.active && S.traitor.idx!=null) G.promptTraitorName();
+},
+
+promptTraitorName(){
+  const idx=S.traitor.idx;
+  if(idx===S.me){ G.traitorNameModal(); return; }
+  if(Net.mode==="host"){
+    const connId=PC(idx).conn;
+    if(connId) Net.transport.to(connId, {t:"traitorPick"});
+  }
+},
+traitorNameModal(){
+  modal(`<h3>Something in you has changed</h3>
+    <p>You are the traitor. Nothing about you looks different yet — help this party, or don't;
+       either way, when ${DUNGEONS[S.dun].name}'s true master finally falls, you are what rises
+       in its place.</p>
+    <p>Choose the name you'll wear when that happens. Nobody else sees it until then.</p>
+    <div class="namerow"><input id="tname" maxlength="20" placeholder="a name for what you'll become"></div>
+    <div class="navrow"><button class="ch go" onclick="G.submitTraitorName()"><b>Seal it</b></button></div>`);
+},
+submitTraitorName(){
+  const v=cleanName(document.getElementById("tname").value) || "The Unmasked";
+  G.send("traitorname", {name:v});
+  closeModal();
+},
+
+// The instant the real boss dies, if a traitor is still walking among the
+// party, they stop being an ally and become the true fight. The engine
+// drives its attacks automatically every round exactly like any other
+// monster (Rules.monsterTurn, unchanged) — the only thing layered on top
+// is a bonus "Dark Strike" the traitor's own screen can press whenever it
+// likes, off the normal turn cycle (see the "darkstrike" case in perform).
+revealTraitor(){
+  const idx=S.traitor.idx, pc=PC(idx);
+  if(!pc) return;
+  S.traitor.revealed=true;
+  pc.isBoss=true;
+  const base=MONSTERS[DUNGEONS[S.dun].boss];
+  const n=Math.max(1, S.party.filter(p=>!p.isBoss).length);
+  let hp=Math.max(1,R.parse(base.hp));
+  hp=Math.round(hp*1.6*(1+0.5*(n-1)));
+  const name=S.traitor.secretName || "The Unmasked";
+  S.fight={ name, the:name, hp, hpMax:hp, ac:base.ac+2, atk:base.atk+2, dmg:base.dmg,
+            xp:Math.round(base.xp*1.5), atks:n>=3?3:2, rattled:0, boss:true, fl:"was one of you, until it wasn't" };
+  S.round=1; S.acted=[]; S.active=conscious()[0]??0;
+  out(`<span class="hurt">It was ${escHtml(pc.name)}, all along.</span> `+
+      `<span class="hurt">They are not ${escHtml(pc.name)} any more — <b>${escHtml(name)}</b> has come to collect what's owed.</span>`);
+},
+
 /* ---- choices ---- */
 choices(){
   const box=document.getElementById("choices"); box.innerHTML=""; box.className="";
@@ -2381,6 +2559,26 @@ choices(){
     const b=document.createElement("button");
     b.className="ch"+(danger?" danger":""); b.innerHTML=label; b.onclick=fn; box.appendChild(b);
   };
+
+  // The revealed traitor isn't part of the turn order any more (conscious()
+  // excludes them) — they get their own screen entirely, off-cycle, for as
+  // long as the boss fight they now are lasts.
+  if(S.traitor && S.traitor.revealed && S.traitor.idx===S.me){
+    const tb2=document.getElementById("turn");
+    if(S.fight){
+      tb2.innerHTML=`<b>You are ${escHtml(S.traitor.secretName||"the thing that rises")}.</b> Strike whenever you like.`;
+      add(`<b>Dark Strike</b> <span style="color:var(--dim)">(${S.traitor.strikesLeft||0} left)</span>`,
+        ()=>G.act("darkstrike"), true);
+      if((S.traitor.strikesLeft||0)<=0)
+        add(`<span style="color:var(--dim)">Nothing left to strike with — the rest is out of your hands now.</span>`, ()=>{});
+    } else {
+      tb2.innerHTML="";
+      add(`<span style="color:var(--dim)">It's over. Whatever you were, you aren't any more.</span>`, ()=>{});
+    }
+    document.getElementById("txt").disabled=true;
+    document.getElementById("go").disabled=true;
+    return;
+  }
 
   // turn banner
   const tb=document.getElementById("turn");
@@ -2420,6 +2618,16 @@ choices(){
     add(`<b>Look</b> around`, ()=>G.act("look"));
     if(S.party.some(p=>p.hp<p.hpMax)) add(`<b>Rest</b> <span style="color:var(--dim)">(risky)</span>`, ()=>G.act("rest"));
     if(me.potions>0 && me.hp<me.hpMax) add(`<b>Drink</b> a potion <span style="color:var(--dim)">(${me.potions})</span>`, ()=>G.act("potion"));
+  }
+  // Only the traitor's own screen ever renders these — the effects land as
+  // ordinary bad luck or a lucky break in the shared log, never attributed.
+  if(S.traitor && S.traitor.active && !S.traitor.revealed && S.traitor.idx===S.me){
+    if((S.traitor.sabotageLeft||0)>0)
+      add(`<span style="color:var(--purple)">Sabotage, quietly</span> <span style="color:var(--dim)">(${S.traitor.sabotageLeft})</span>`,
+        ()=>G.attempt("traitorSabotage"));
+    if((S.traitor.aidLeft||0)>0)
+      add(`<span style="color:var(--purple)">Aid, quietly</span> <span style="color:var(--dim)">(${S.traitor.aidLeft})</span>`,
+        ()=>G.attempt("traitorAid"));
   }
   if(inputOn) focusTxt();
 },
@@ -2465,9 +2673,15 @@ victory(){
   document.getElementById("turn").innerHTML="";
   SFX.victory();
   scene("Daylight");
+  const survivors=S.party.filter(p=>!p.isBoss);
   out(`You come up out of ${DUNGEONS[S.dun].short} with ${DUNGEONS[S.dun].prize.toLowerCase()}, and the light
        is so ordinary it is almost insulting. Behind you, something settles, and stops.
-       <span class="sys">${S.party.map(p=>`${p.name} the ${p.cls.toLowerCase()}, level ${p.lvl}, ${p.hp}/${p.hpMax}`).join(" · ")}</span>`);
+       <span class="sys">${survivors.map(p=>`${p.name} the ${p.cls.toLowerCase()}, level ${p.lvl}, ${p.hp}/${p.hpMax}`).join(" · ")}</span>`);
+  if(S.traitor && S.traitor.revealed){
+    const traitorPc=S.party.find(p=>p.isBoss);
+    if(traitorPc) out(`<span class="sys">${traitorPc.name} does not come up with you. Nobody who was at that
+      table will ever quite agree on what ${escHtml(S.traitor.secretName||"it")} looked like.</span>`);
+  }
   if(Net.mode!=="guest"){
     const b=document.getElementById("choices");
     const btn=document.createElement("button"); btn.className="ch";
@@ -2517,6 +2731,12 @@ help(){
     <p>In a fight, turns go round the party. Between fights anyone may act. A character at 0 hit points
        is down, not dead — spend a potion to get them up, or they rise at 1 hit point when the fighting
        stops. Everyone dies only if everyone is down.</p>
+    <p><b>Traitor Mode</b> (host only, needs two or more in the party) — open <b>Play with friends</b>
+       while hosting to switch it on. One of you is secretly chosen as the traitor and gets a couple of
+       quiet extra options on your own turns, nobody else ever sees them. When the true final boss falls,
+       the traitor stops being an ally and becomes what the barrow was really protecting — under a name
+       only they chose, boosted, and fought like any other monster (with one bonus move that's theirs alone).
+       Nobody else is ever told who it was until that moment.</p>
     <p style="font-size:13px;color:var(--dim)">The host runs the rules. Guests send what they want to do
        and receive the result — they never roll, so a modified guest cannot cheat.</p>
 
@@ -2552,9 +2772,18 @@ drawer(force){
 /* ---- multiplayer ---- */
 multiplayer(){
   if(Net.mode!=="solo"){
+    ensureTraitorField(S);
+    const canTraitor = Net.mode==="host" && S.party.length>=2 && !S.traitor.revealed;
     modal(`<h3>${Net.mode==="host"?"You are hosting":"You have joined"}</h3>
       <p>${Net.mode==="host"?`Room code <span id="code">${Net.code}</span> — read it out.`:`Connected to ${Net.code}.`}</p>
       <p>${S.party.map(p=>`${p.name} the ${p.cls.toLowerCase()}`).join(" · ")}</p>
+      ${canTraitor ? `<div class="navrow" style="margin-top:6px">
+        <button class="ch" onclick="G.toggleTraitorMode()" style="flex:1">
+          <b>Traitor Mode: ${S.traitor.active?"On":"Off"}</b><br>
+          <span class="dim" style="font-size:11px">${S.traitor.active
+            ? "Someone at this table isn't who they seem."
+            : "One of you will secretly become the true final boss."}</span>
+        </button></div>` : ""}
       <button class="ch" onclick="closeModal()">Close</button>`);
     return;
   }
@@ -2706,7 +2935,7 @@ load(input){
     try{
       const d=JSON.parse(fr.result);
       if(!d.party || !d.party[0] || !d.party[0].anc) throw new Error("old save");
-      S=d; S.me=Math.min(S.me||0, S.party.length-1);
+      S=ensureTraitorField(d); S.me=Math.min(S.me||0, S.party.length-1);
       closeModal();
       document.getElementById("log").innerHTML="";
       out(`<span class="sys">Save restored — ${S.party.map(p=>`${p.name} (${p.lvl})`).join(", ")}.</span>`);
