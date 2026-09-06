@@ -1,4 +1,6 @@
 // Vercel serverless function backing "Connect cloud AI" in barrow.html.
+// (no functional change — trivial edit to trigger a fresh build so this
+// deployment picks up the GROQ_API_KEY env var saved after the last build)
 //
 // The rules engine has already decided everything that happened before
 // this is ever called — dice, damage, hits, finds, deaths are all final
