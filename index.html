@@ -2993,8 +2993,35 @@ async join(){
 
 netFail(e){
   Net.mode="solo";
+  const type=e&&e.type;
+  // "browser-incompatible" is PeerJS's own feature-detection failing before
+  // any connection attempt even starts — it means WebRTC itself isn't
+  // available to the page, which is a completely different problem from
+  // every other error type (those are real network/signaling failures
+  // after WebRTC checked out fine). The generic network/firewall advice
+  // below is actively misleading for this one, so it gets its own message.
+  if(type==="browser-incompatible"){
+    const hasRTC = typeof RTCPeerConnection!=="undefined";
+    modal(`<h3>This browser can't do peer-to-peer</h3>
+      <p>That's not a network or firewall problem — PeerJS checked and this browser (or
+         something inside it) doesn't expose WebRTC at all, so it never even tried to connect.</p>
+      <p>Most common causes: a privacy/ad-blocking extension that deliberately hides or disables
+         WebRTC to prevent IP leaks (uBlock Origin's "Prevent WebRTC leaks", "WebRTC Leak Prevent",
+         and similar all do this on purpose); an in-app browser embedded inside another app
+         (opening the link from inside Instagram, LinkedIn, Discord, etc. instead of a real
+         browser); or a browser with WebRTC turned off in its own privacy settings.</p>
+      <p>Worth trying: open this page in a normal browser tab (not an in-app one) — Chrome,
+         Firefox, Edge, or Safari all support this fine by default — and if that doesn't help,
+         briefly disable extensions one at a time to find the one blocking it.</p>
+      <p style="font-size:12px;color:var(--dim)">Technical detail, if it helps track this down:
+         RTCPeerConnection is ${hasRTC?"present but PeerJS still couldn't use it":"not available on this page at all"},
+         on <code>${escHtml(navigator.userAgent)}</code>.</p>
+      <p style="font-size:13px;color:var(--dim)">Your solo game is untouched. Close this and keep playing.</p>
+      <button class="ch" onclick="closeModal(); G.choices()">Close</button>`);
+    return;
+  }
   modal(`<h3>Could not connect</h3>
-    <p>${String(e&&e.type||e&&e.message||e||"unknown")}.</p>
+    <p>${String(type||e&&e.message||e||"unknown")}.</p>
     <p>Peer-to-peer needs the internet and an open path between the two machines. Some
        networks — office and school ones especially — block it. Common causes: the code was
        mistyped, the host has not opened the room yet, or one of you is behind a strict firewall.</p>
