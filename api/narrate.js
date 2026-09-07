@@ -1,6 +1,4 @@
 // Vercel serverless function backing "Connect cloud AI" in barrow.html.
-// (no functional change — trivial edit to trigger a fresh build so this
-// deployment picks up the GROQ_API_KEY env var saved after the last build)
 //
 // The rules engine has already decided everything that happened before
 // this is ever called — dice, damage, hits, finds, deaths are all final
@@ -85,18 +83,26 @@ Scene: ${context}.`;
     });
 
     if (!groqRes.ok) {
-      res.status(502).json({ error: "upstream_error" });
+      // Log the real reason server-side (visible in Vercel's runtime logs)
+      // without leaking upstream error detail to the client — the client
+      // just needs to know to fall back to built-in narration.
+      let detail = "";
+      try { detail = (await groqRes.text()).slice(0, 500); } catch {}
+      console.error(`[narrate] Groq responded ${groqRes.status}: ${detail}`);
+      res.status(502).json({ error: "upstream_error", upstreamStatus: groqRes.status });
       return;
     }
 
     const j = await groqRes.json();
     const reworded = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || "").trim();
     if (!reworded) {
+      console.error(`[narrate] Groq returned no content: ${JSON.stringify(j).slice(0, 500)}`);
       res.status(502).json({ error: "empty_response" });
       return;
     }
     res.status(200).json({ text: reworded.slice(0, 1000) });
   } catch (err) {
+    console.error(`[narrate] fetch threw: ${err && err.message}`);
     res.status(504).json({ error: "timeout_or_network" });
   } finally {
     clearTimeout(timeout);
