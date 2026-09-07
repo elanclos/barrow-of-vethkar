@@ -1089,7 +1089,11 @@ function apply(events){
       case "won": S.flags.won=true; break;
       case "fled": S.fight=null; break;
     }
+    // Kept for the run's recent history only. It used to grow without limit,
+    // and it rides along in every autosave, every save file and every
+    // per-guest state push, so a long delve quietly inflated all three.
     S.log.push(e);
+    if(S.log.length>200) S.log.splice(0, S.log.length-200);
   }
   if(partyWiped()) S.flags.dead=true;      // party wipe — real hp, not connection state
   return events;
@@ -1643,12 +1647,10 @@ const Net = {
   /* ---- guest side ---- */
   guestReceive(msg){
     if(msg.t==="you"){ Net.myIdx=msg.idx; return; }
-    if(msg.t==="rename" || msg.t==="avatar"){
-      const idx=S.party.findIndex(p=>p.conn===connId);
-      if(idx<0) return;
-      Net.applyIdentity(idx, msg.t, msg);
-      return;
-    }
+    // Renames and badge changes reach guests inside the next "state" push,
+    // not as messages of their own — there was a branch here that tried to
+    // resolve a connection id that only exists on the host side, so it could
+    // only ever have thrown. Guests apply identity from state, like everything else.
     if(msg.t==="chat"){ Chat.line(msg.from, msg.text); return; }
     if(msg.t==="music"){ Music.receiveShare(msg.url, msg.from); return; }
     if(msg.t==="traitorPick"){ G.traitorNameModal(); return; }
@@ -2019,7 +2021,7 @@ start(){
       <div class="pick">
         <button class="ch" onclick="G.resumeSave()"><b>Continue the delve</b></button>
         <button class="ch" onclick="closeModal(); G.newGame()"><b>Start a new character</b></button>
-      </div>`);
+      </div>`, true);
     return;
   }
   G.newGame();
@@ -2107,7 +2109,7 @@ creator(){
                 :`<button class="ch" onclick="G.chose()">Surprise me</button>`}
       <button class="ch go" onclick="${last?"G.begin()":`G.step(${d.step+1})`}">
         <b>${last?"Begin the descent":"Next"}</b></button>
-    </div>`);
+    </div>`, true);
   if(d.step===0){ const el=document.getElementById("cname"); if(el && WANT_FOCUS) el.focus(); }
 },
 
@@ -2847,8 +2849,9 @@ help(){
        remembers your choice. It fires the same way for everyone in a party, since it reads off
        what the narrator actually says.</p>
     <p><b>Music</b> opens a small floating YouTube player for table music — paste a link (a
-       D&D ambient track, a lofi loop, anything). It's local to your own screen only; nobody
-       else in the party hears it, and it remembers your track between sessions. Collapse it
+       D&D ambient track, a lofi loop, anything). The host picks the track and everyone at the
+       table gets their own player for it, with their own play/pause and volume, so there is no
+       playback position to keep in sync. It remembers your track between sessions. Collapse it
        with <b>–</b> or stop it with <b>✕</b>.</p>
 
     <h3 style="margin-top:22px">AI narration (optional)</h3>
@@ -3168,8 +3171,17 @@ function updateAiButtons(){
   cb.textContent = activeCloud ? "Cloud AI connected" : "Connect cloud AI";
   cb.classList.toggle("hot", activeCloud);
 }
-function modal(html){ document.getElementById("mbox").innerHTML=html; document.getElementById("modal").classList.add("show"); }
-function closeModal(){ document.getElementById("modal").classList.remove("show"); }
+// `sticky` marks a modal that must not be dismissed by clicking the backdrop.
+// The character creator and the resume-or-restart prompt are both shown while
+// S is still null — closing either one used to leave a live page with no
+// character, no buttons and no way back except a manual reload.
+let MODAL_STICKY=false;
+function modal(html, sticky){
+  MODAL_STICKY=!!sticky;
+  document.getElementById("mbox").innerHTML=html;
+  document.getElementById("modal").classList.add("show");
+}
+function closeModal(){ MODAL_STICKY=false; document.getElementById("modal").classList.remove("show"); }
 
 function sync(){
   if(!S || !S.party) return;
@@ -3246,7 +3258,7 @@ function submit(){
             : p.action==="noSuch"   ? `<span style="color:var(--dim)"> · you have no such thing</span>`
             : p.action==="freeform" ? `<span style="color:var(--purple)"> · the barrow decides${p.item?` (${p.item.toLowerCase()})`:""}</span>`
             : `<span style="color:var(--dim)"> · ${actionLabel(p.action)}</span>`;
-  out(`<span class="you">${S.party.length>1?ME().name+": ":""}${v.replace(/</g,"&lt;")}</span>${tag}`);
+  out(`<span class="you">${S.party.length>1?escHtml(ME().name)+": ":""}${escHtml(v)}</span>${tag}`);
 
   if(p.action==="ask"){ G.clarify(p.note, p.alts); return; }
   G.attempt(p.action, p.raw, p.target);
@@ -3258,7 +3270,7 @@ document.getElementById("chattxt").addEventListener("keydown",e=>{
   e.stopPropagation();
 });
 document.getElementById("txt").addEventListener("keydown",e=>{ if(e.key==="Enter") submit(); });
-document.getElementById("modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
+document.getElementById("modal").addEventListener("click",e=>{ if(e.target.id==="modal" && !MODAL_STICKY) closeModal(); });
 
 G.start();
 </script>
