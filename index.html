@@ -110,6 +110,29 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
   font-size:12px; cursor:pointer; font-family:inherit}
 .rollskip:hover{color:var(--ink)}
 
+/* ---- enemy status (regular fights only — a boss keeps its mystery,
+   same reasoning as the "how much can it take" check staying vague) ---- */
+#enemystat{display:none; align-items:center; gap:10px; margin-bottom:9px}
+#enemystat.on{display:flex}
+#enemystat b{font-size:13px; color:var(--ink); font-weight:600; white-space:nowrap}
+#enemystat .bar{flex:1; margin:0; height:8px}
+
+/* ---- congratulations banner on clearing a dungeon ---- */
+.congrats{position:fixed; left:50%; top:36%; transform:translate(-50%,-50%); z-index:9999;
+  pointer-events:none; text-align:center; font-size:clamp(26px,5vw,50px); font-weight:800;
+  letter-spacing:.4px; color:var(--gold);
+  text-shadow:0 2px 20px rgba(0,0,0,.65), 0 0 26px rgba(201,162,39,.35);
+  animation:bannerPop 3.4s ease forwards}
+.congrats span{display:block; font-size:.38em; font-weight:500; color:var(--ink);
+  margin-top:8px; letter-spacing:.3px; text-shadow:0 2px 10px rgba(0,0,0,.7)}
+@keyframes bannerPop{
+  0%{opacity:0; transform:translate(-50%,-62%) scale(.7)}
+  14%{opacity:1; transform:translate(-50%,-50%) scale(1.08)}
+  24%{transform:translate(-50%,-50%) scale(1)}
+  82%{opacity:1; transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0; transform:translate(-50%,-46%) scale(1.02)}
+}
+
 /* ---- topbar ---- */
 #top{flex:none; display:flex; align-items:center; gap:9px; padding:8px 16px; flex-wrap:wrap;
   background:#100c08; border-bottom:1px solid var(--line); font-size:12px; color:var(--dim)}
@@ -323,6 +346,7 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
     <div id="mobparty"></div>
     <div id="log"></div>
     <div id="ctl">
+      <div id="enemystat"><b id="enemyname"></b><div class="bar"><i id="enemyhpbar" style="width:100%"></i></div></div>
       <div id="turn"></div>
       <div id="choices"></div>
       <div id="inrow">
@@ -2932,6 +2956,18 @@ choices(){
     return;
   }
 
+  // Enemy health bar — regular fights only. A boss stays vague on purpose
+  // (same reason the "how much can it take" check already hedges for one),
+  // so this only ever shows for an ordinary monster.
+  const eb=document.getElementById("enemystat");
+  if(S.fight && !S.fight.boss){
+    eb.classList.add("on");
+    document.getElementById("enemyname").textContent=S.fight.name;
+    document.getElementById("enemyhpbar").style.width=Math.max(0,100*S.fight.hp/S.fight.hpMax)+"%";
+  } else {
+    eb.classList.remove("on");
+  }
+
   // turn banner
   const tb=document.getElementById("turn");
   if(S.flags.dead||S.flags.won) tb.innerHTML="";
@@ -3032,10 +3068,23 @@ clarify(note, alts){
   focusTxt();
 },
 
+// A brief celebratory banner over the whole page on a successful clear —
+// purely decorative (nothing here touches S or rolls anything), auto-removes
+// itself so it can never get stuck on screen if the tab is backgrounded
+// mid-animation.
+congrats(title, sub){
+  const el=document.createElement("div");
+  el.className="congrats";
+  el.innerHTML=`🏆 ${escHtml(title)}${sub?`<span>${escHtml(sub)} recovered</span>`:""}`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 3500);
+},
+
 /* ---- endings ---- */
 death(){
   document.getElementById("choices").innerHTML="";
   document.getElementById("turn").innerHTML="";
+  document.getElementById("enemystat").classList.remove("on");
   SFX.down();
   scene(`${DUNGEONS[S.dun].short.replace(/^the /,"The ")} keeps you`);
   out(`${S.party.length>1?"They go down":"You go down"} onto the cold stones, and the cold stones are
@@ -3051,7 +3100,9 @@ death(){
 victory(){
   document.getElementById("choices").innerHTML="";
   document.getElementById("turn").innerHTML="";
+  document.getElementById("enemystat").classList.remove("on");
   SFX.victory();
+  G.congrats(`${DUNGEONS[S.dun].short.replace(/^the /,"The ")} — cleared`, DUNGEONS[S.dun].prize);
   scene("Daylight");
   const survivors=S.party.filter(p=>!p.isBoss);
   out(`You come up out of ${DUNGEONS[S.dun].short} with ${DUNGEONS[S.dun].prize.toLowerCase()}, and the light
