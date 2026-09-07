@@ -568,7 +568,7 @@ const BACKGROUNDS = {
 // as everywhere else. "throw" items roll to hit like a weapon and deal
 // real damage; "scatter" items have no roll and apply a status instead.
 const ITEM_EFFECTS = {
-  "Oil flask": {kind:"throw",   dmg:"1d6+2"},
+  "Oil flask": {kind:"throw",   dmg:"1d6+2", ignites:true},
   "Caltrops":  {kind:"scatter"}
 };
 
@@ -897,6 +897,7 @@ function spawn(key){
   m.hp=hp; m.hpMax=hp;
   m.atks = n>=4 ? 3 : (n>=2 ? 2 : 1);             // and it swings more often
   m.rattled=0;
+  m.burning=0;
   m.the=(m.boss?"":"The ")+m.name;
   return m;
 }
@@ -1003,7 +1004,14 @@ const Rules = {
     const used=[{t:"itemused", src:a, item}];
     if(!hit) return used.concat([{t:"miss", src:a, vs:"mob", r, b, tot, ac:target.ac, fumble:r===1, wpn:item}]);
     const dmg=Math.max(1, R.parse(eff.dmg));
-    return used.concat([{t:"hit", src:a, vs:"mob", r, b, tot, dmg, crit:r===20, wpn:item}]);
+    const ev=used.concat([{t:"hit", src:a, vs:"mob", r, b, tot, dmg, crit:r===20, wpn:item}]);
+    // An oil flask that connects leaves whatever it hit alight — a few rounds
+    // of fire damage on top of the throw itself, ticking at the start of the
+    // monster's own turn (see monsterTurn). A miss never soaked it, so nothing
+    // to ignite. Re-throwing a second flask just refreshes the burn, it doesn't
+    // stack into faster damage — one fire is one fire.
+    if(eff.ignites) ev.push({t:"ignite", vs:"mob"});
+    return ev;
   },
 
   // No roll — scattering caltrops can't miss. It rattles whatever's in the
@@ -1036,6 +1044,17 @@ const Rules = {
   // mAct marks "the monster has already acted", so the engine never doubles it.
   monsterTurn(m){
     const ev=[];
+    // Fire ticks at the start of the monster's own turn, before it swings —
+    // an oil flask still costs it something even on a round where the party
+    // does nothing to it. Killing it here (rather than only on a player's
+    // attack) is new with burning, which is why resolve() now checks for a
+    // dead monster after every monsterTurn call, not just at the top.
+    if(m.burning>0){
+      const dmg=R.d(4);
+      ev.push({t:"burn", vs:"mob", dmg, mAct:true});
+      m.burning--;
+      if(m.hp<=dmg) return ev;             // the fire finishes it — no last swing
+    }
     for(let k=0;k<(m.atks||1);k++){
       const live=conscious();
       if(!live.length) break;
@@ -1152,6 +1171,12 @@ function apply(events){
       case "edge": PC(e.vs).edge=true; break;
       case "rage": PC(e.src).rage=1; break;
       case "rattle": if(S.fight) S.fight.rattled=(S.fight.rattled||0)+(e.n||1); break;
+      // Refresh, not stack — a second flask keeps the fire going for 2 more
+      // of the monster's turns rather than piling up a second, faster burn.
+      case "ignite": if(S.fight) S.fight.burning=2; break;
+      case "burn":
+        if(S.fight){ S.fight.hp=Math.max(0,S.fight.hp-e.dmg); if(S.fight.hp===0) e.killed=true; }
+        break;
       case "rename": PC(e.vs).name=e.name; break;
       case "avatar": PC(e.vs).av={...PC(e.vs).av, em:e.em, col:e.col}; break;
       case "usepower": PC(e.src).power.uses--; break;
@@ -1247,6 +1272,8 @@ const Narrator = {
       case "edge": return `<span class="hit">${N.nm(e.vs)} has the better of the position now — the next strike comes in clean.</span>`;
       case "rage": return `<span class="hurt">${N.nm(e.src)} stops being careful.</span> <span class="hit">Everything hurts more, coming and going.</span>`;
       case "rattle": return `<span class="hit">It loses the thread of what it was doing.</span>`;
+      case "ignite": return null; // silent — the hit line for the flask connecting already says it caught
+      case "burn": return `<span class="hit">The fire hasn't gone out. <b>${e.dmg}</b> more damage.</span>`;
       case "itemused": return null; // silent — the hit/miss/rattle line right alongside it already says what happened
       case "rename": return `<span class="sys">${e.was} is called ${e.name} now.</span>`;
       case "usepower": return `<em>${N.poss(e.src)} ${e.name}.</em>`;
@@ -2596,32 +2623,40 @@ async perform(a, action, arg, target){
   }
 },
 
+// Split out of resolve() so a kill landed by burning damage on the monster's
+// own turn — new with fire, nothing on a monster's turn could hurt it before —
+// gets the same end-of-fight handling as a kill landed by a player's attack,
+// wherever in resolve() it happens to occur, not just at the top.
+async endFightIfDead(r){
+  if(!(S.fight && S.fight.hp<=0)) return false;
+  out(`<span class="hit">${S.fight.the} comes apart and does not get up.</span>`);
+  const g=[{t:"xp", amt:S.fight.xp}];
+  apply(g); await Narrator.render(g, r.n);
+  const boss=S.fight.boss;
+  S.fight=null; r.cleared=true; S.acted=[];
+  S.party.forEach(p=>{ p.rage=0; });          // rage ends with the fight
+  // whoever was down gets dragged up once the fighting stops
+  const up=S.party.filter(p=>p.down);
+  if(up.length){ up.forEach(p=>{ p.down=false; p.hp=1; });
+    out(`<span class="hit">${up.map(p=>p.name).join(" and ")} get${up.length>1?"":"s"} hauled upright — one hit point and a bad hour ahead.</span>`); }
+  if(boss){
+    out(`<span class="hit">The crown is unguarded now.</span>`);
+    // The traitor is not dragged out of hiding by the boss dying any more.
+    // They are simply told, on their own screen, that the door is open —
+    // and they walk through it whenever they choose, or never.
+    if(S.traitor && S.traitor.active && !S.traitor.revealed && !S.traitor.awakened){
+      S.traitor.awakened=true;
+      G.notifyTraitorAwake();
+    }
+  }
+  return true;
+},
+
 /* ---- post-turn ---- */
 async resolve(a, ev, spent){
   const r=S.map[S.at];
 
-  if(S.fight && S.fight.hp<=0){
-    out(`<span class="hit">${S.fight.the} comes apart and does not get up.</span>`);
-    const g=[{t:"xp", amt:S.fight.xp}];
-    apply(g); await Narrator.render(g, r.n);
-    const boss=S.fight.boss;
-    S.fight=null; r.cleared=true; S.acted=[];
-    S.party.forEach(p=>{ p.rage=0; });          // rage ends with the fight
-    // whoever was down gets dragged up once the fighting stops
-    const up=S.party.filter(p=>p.down);
-    if(up.length){ up.forEach(p=>{ p.down=false; p.hp=1; });
-      out(`<span class="hit">${up.map(p=>p.name).join(" and ")} get${up.length>1?"":"s"} hauled upright — one hit point and a bad hour ahead.</span>`); }
-    if(boss){
-      out(`<span class="hit">The crown is unguarded now.</span>`);
-      // The traitor is not dragged out of hiding by the boss dying any more.
-      // They are simply told, on their own screen, that the door is open —
-      // and they walk through it whenever they choose, or never.
-      if(S.traitor && S.traitor.active && !S.traitor.revealed && !S.traitor.awakened){
-        S.traitor.awakened=true;
-        G.notifyTraitorAwake();
-      }
-    }
-  }
+  await G.endFightIfDead(r);
 
   if(ev.some(e=>e.t==="wandering"||e.t==="noise") && !S.fight){
     const m=spawn(rollMob(S.at)||"rat");
@@ -2645,6 +2680,7 @@ async resolve(a, ev, spent){
       if(!alreadyActed){
         const mev=Rules.monsterTurn(S.fight);
         apply(mev); await Narrator.render(mev, r.n);
+        await G.endFightIfDead(r);
       }
     }
   }
@@ -2660,6 +2696,7 @@ async resolve(a, ev, spent){
         S.acted=[]; S.active=live[0]; S.round++;
         const mev=Rules.monsterTurn(S.fight);
         apply(mev); await Narrator.render(mev, r.n);
+        await G.endFightIfDead(r);
       }
     }
   }
