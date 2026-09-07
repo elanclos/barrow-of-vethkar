@@ -2911,7 +2911,7 @@ async host(){
   try{
     await loadPeer();
     const code=Array.from({length:4},()=>"ABCDEFGHJKLMNPQRSTUVWXYZ"[R.int(24)]).join("");
-    Net.peer=new Peer("barrow-"+code, {debug:0});
+    Net.peer=new Peer("barrow-"+code, {debug:0, config:{iceServers:PEER_ICE}});
     Net.peer.on("open", ()=>{
       Net.mode="host"; Net.code=code;
       Chat.show();
@@ -2964,7 +2964,7 @@ async join(){
   modal(`<h3>Joining ${code}…</h3><p class="sys">Loading the peer-to-peer library.</p>`);
   try{
     await loadPeer();
-    Net.peer=new Peer({debug:0});
+    Net.peer=new Peer({debug:0, config:{iceServers:PEER_ICE}});
     Net.peer.on("open", ()=>{
       const c=Net.peer.connect("barrow-"+code, {reliable:true});
       Net.hostConn=c;
@@ -3083,6 +3083,20 @@ load(input){
 };
 
 /* ------------------------------------------------------------ helpers --- */
+// PeerJS's own default config bundles very few STUN servers, which is a
+// real cause of "cannot start"/"cannot connect" failures on some networks —
+// WebRTC needs at least one working STUN server on both sides to discover
+// a public address, and having only one gives no fallback if it's briefly
+// unreachable. This is just a longer, well-known public STUN list (no TURN
+// relay, still free) — it can't fix a strict symmetric-NAT/corporate
+// firewall that blocks WebRTC outright (nothing short of a paid TURN relay
+// can), but it meaningfully improves the odds on an ordinary home network.
+const PEER_ICE=[
+  {urls:"stun:stun.l.google.com:19302"},
+  {urls:"stun:stun1.l.google.com:19302"},
+  {urls:"stun:stun2.l.google.com:19302"},
+  {urls:"stun:stun.cloudflare.com:3478"}
+];
 function loadPeer(){
   return new Promise((res,rej)=>{
     if(window.Peer) return res();
