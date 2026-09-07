@@ -724,7 +724,13 @@ const DUNGEONS = {
       "Bracken is flattened in a long oval, the size of something sleeping.",
       "Sap runs from a fresh cut that nobody here made.",
       "The canopy closes overhead until it is dusk at midday."
-    ]
+    ],
+    // Same reason adj/detail got their own pool: a barrow's ambient sounds
+    // ("shifting stone", "a door closing") have no business in a wood.
+    sound:["wind moving through leaves that shouldn't be moving","a branch creaking with no wind at all",
+           "something large, breathing, some way off","nothing at all — not even birds",
+           "a low, wet chewing sound","water somewhere, moving the wrong way uphill",
+           "your own heartbeat, louder than it should be","bark splitting, slow and deliberate"]
   },
   chancel:{
     name:"The Drowned Chancel", short:"the chancel", goal:"the Tideglass Reliquary",
@@ -1247,7 +1253,7 @@ const Narrator = {
       case "nopower": return `<span class="sys">${N.nm(e.src)} reaches for ${e.name} and finds nothing left.</span>`;
       case "note": return e.text;
       case "searched":
-        return `${N.nm(e.src)} goes over the room properly — ${RL(`WIS ${e.roll.r}+${e.roll.b}=${e.roll.tot} vs DC ${e.roll.dc}`)} — ${e.roll.ok?"and the patience is rewarded.":"and turns up nothing worth the time."}`;
+        return `${N.nm(e.src)} goes over the ${PLACE()} properly — ${RL(`WIS ${e.roll.r}+${e.roll.b}=${e.roll.tot} vs DC ${e.roll.dc}`)} — ${e.roll.ok?"and the patience is rewarded.":"and turns up nothing worth the time."}`;
       case "loot": return `<span class="hit">${N.nm(e.vs)} finds ${e.what}.</span>`;
       case "noise": return `<span class="hurt">Something goes over with a clatter. The sound travels a long way down here.</span>`;
       case "rest": return `You wedge yourselves into a corner where nothing can come at your backs, and close your eyes.`;
@@ -1255,7 +1261,7 @@ const Narrator = {
       case "fled": return `<span class="hit">${N.nm(e.src)} breaks away and the party goes with them</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
       case "nofled": return `<span class="hurt">${N.nm(e.src)} turns to run and it is already moving</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
       case "xp": return `<span class="sys">+${e.share||e.amt} experience each.${e.levels?" <b>"+e.levels.join(". ")+".</b>":""}</span>`;
-      case "crown": return `<span class="hit">${DUNGEONS[S.dun].prize} is lighter than it looks, and colder than the room.</span>`;
+      case "crown": return `<span class="hit">${DUNGEONS[S.dun].prize} is lighter than it looks, and colder than the ${PLACE()}.</span>`;
       case "stand": return `<span class="hurt">${N.nm(e.vs)} goes down —</span> and then does not. <span class="hit">Something refuses</span> — ${RL(`CON ${e.roll.tot} vs DC ${e.roll.dc}`)} — <b>${PC(e.vs).hp}</b> hit points, and no more reprieves.`;
       case "insight":
         return `<span class="hit">${S.fight
@@ -1406,7 +1412,7 @@ const has = (toks, key) => NOUNS[key].some(n => toks.includes(n));
 
 function actionLabel(a){
   const me=ME();
-  return ({ move:"move on", look:"look around", search:"search the chamber", attack:"attack",
+  return ({ move:"move on", look:"look around", search:`search the ${PLACE()}`, attack:"attack",
             potion:"drink a potion", rest:"rest", flee:"flee", take:"take the crown",
             listen:"listen", inv:"check your gear", wait:"wait", cmds:"commands", talk:"speak to it",
             pray:"pray", hide:"hide", query:"a question", revive:"help an ally up", noSuch:"—",
@@ -1528,7 +1534,7 @@ function parse(text){
 
     case "check":
       return has(toks,"pack") ? ok("inv")
-        : ask("Check what?", [["Your gear","inv"],["The chamber","look"], ORACLE]);
+        : ask("Check what?", [["Your gear","inv"],[`The ${PLACE()}`,"look"], ORACLE]);
 
     case "search":
       if(has(toks,"pack")) return ok("inv");
@@ -2318,7 +2324,7 @@ describeRoom(first){
     S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
     out(`<span class="hurt">${m.the} is here — ${m.fl}. It has seen you.</span>`);
   } else {
-    out(`<span class="sys">You hear ${R.pick(T.sound)}.</span>`);
+    out(`<span class="sys">You hear ${R.pick(DUNGEONS[S.dun].sound||T.sound)}.</span>`);
     S.acted=[]; S.active=conscious()[0]??0;
   }
   // A rare, unattributed shiver. It fires at the same rate in every party,
@@ -2491,7 +2497,7 @@ async perform(a, action, arg, target){
                         :`Ahead, the passage continues down.`)}`);
       break;
 
-    case "listen": out(`<span class="sys">You hear ${R.pick(T.sound)}.</span>`); break;
+    case "listen": out(`<span class="sys">You hear ${R.pick(DUNGEONS[S.dun].sound||T.sound)}.</span>`); break;
     case "inv":    G.sheet(); break;
     case "cmds":   G.help(); break;
     case "query":  out(answerQuery(String(arg||"").toLowerCase().replace(/[^a-z0-9' ]/g," ").split(/\s+/).filter(Boolean))); break;
