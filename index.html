@@ -421,8 +421,18 @@ const R = {
 const SFX = {
   on:true, ctx:null,
   ensure(){
-    if(this.ctx) return this.ctx;
-    try{ this.ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ this.on=false; }
+    if(this.ctx){
+      // A context can exist but still be suspended from an earlier attempt
+      // that wasn't tied to a fresh gesture. Calling resume() again here,
+      // synchronously inside whatever click just called ensure(), is what
+      // actually counts as "unlocking" it in the browser's eyes.
+      if(this.ctx.state==="suspended") this.ctx.resume().catch(()=>{});
+      return this.ctx;
+    }
+    try{
+      this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+      if(this.ctx.state==="suspended") this.ctx.resume().catch(()=>{});
+    }catch(e){ this.on=false; }
     return this.ctx;
   },
   // one tone: frequency (or an array for a quick arpeggio), duration, shape, gain
@@ -472,10 +482,11 @@ const SFX = {
   down(){ this.tone([220,164,110], 0.5, "sawtooth", 0.14); },
   victory(){ this.tone([392,523,659,784,1046], 0.9, "triangle", 0.15); },
   click(){ this.tone(500, 0.05, "square", 0.06); },
-  // A short, deliberately unobtrusive two-note blip — distinct from every
-  // combat/reward tone above so it can't be mistaken for something that
-  // happened in the fight, but quiet enough not to be startling mid-turn.
-  chat(){ this.tone([740,988], 0.1, "sine", 0.07); }
+  // A clear two-note notification chime — distinct from every combat/reward
+  // tone above so it can't be mistaken for something that happened in the
+  // fight, but loud and long enough to actually be noticed over everything
+  // else going on, the way a real chat ding needs to be.
+  chat(){ this.tone([740,988], 0.22, "sine", 0.16); }
 };
 
 /* -------------------------------------------------------------- oracle --- */
@@ -3249,6 +3260,14 @@ multiplayer(){
 },
 
 async host(){
+  // Wake the audio context on this exact click, synchronously — a real user
+  // gesture. Without this, a table's very first sound of the session could
+  // be an incoming chat ding (players often say hi before doing anything
+  // else), and unlocking an AudioContext for the first time from inside a
+  // WebRTC message handler rather than a click is the one case that can go
+  // wrong — every combat sound gets this for free by then anyway, since a
+  // fight always follows several other clicks first.
+  SFX.ensure();
   modal(`<h3>Opening a room…</h3><p class="sys">Loading the peer-to-peer library.</p>`);
   try{
     await loadPeer();
@@ -3300,6 +3319,7 @@ joinPrompt(){
 
 async join(){
   if(G._joining) return;                    // double-click guard
+  SFX.ensure();                             // same audio-unlock reasoning as host()
   G._joining=true; setTimeout(()=>G._joining=false, 4000);
   const code=(document.getElementById("joincode").value||"").trim().toUpperCase();
   if(code.length!==4){ document.getElementById("joincode").style.borderColor="var(--red)"; G._joining=false; return; }
