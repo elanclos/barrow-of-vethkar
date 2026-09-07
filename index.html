@@ -1203,7 +1203,12 @@ const Narrator = {
     const better=await Narrator.ask(plain, context);
     dot("on");
     out(better || plain);
-    if(better) out(`<span class="sys">${plain.replace(/<[^>]+>/g,"")}</span>`);
+    // Keep the original hit/miss/hurt color spans in this recap line — only
+    // strip tags for the sound-effect classifier (sfxForLine), never for
+    // display. .sys only sets size/italic; a nested span's own color rule
+    // still wins over it, so the recap stays small and muted *and* colored
+    // the same way the primary line always was.
+    if(better) out(`<span class="sys">${plain}</span>`);
   },
 
   async ask(text, context){
