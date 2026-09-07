@@ -471,7 +471,11 @@ const SFX = {
   loot(){ this.tone([659,880], 0.16, "sine", 0.1); },
   down(){ this.tone([220,164,110], 0.5, "sawtooth", 0.14); },
   victory(){ this.tone([392,523,659,784,1046], 0.9, "triangle", 0.15); },
-  click(){ this.tone(500, 0.05, "square", 0.06); }
+  click(){ this.tone(500, 0.05, "square", 0.06); },
+  // A short, deliberately unobtrusive two-note blip — distinct from every
+  // combat/reward tone above so it can't be mistaken for something that
+  // happened in the fight, but quiet enough not to be startling mid-turn.
+  chat(){ this.tone([740,988], 0.1, "sine", 0.07); }
 };
 
 /* -------------------------------------------------------------- oracle --- */
@@ -1916,6 +1920,9 @@ const Chat = {
     log.appendChild(p);
     while(log.children.length>120) log.removeChild(log.firstChild);
     log.scrollTop=log.scrollHeight;
+    // Only someone else's line gets a sound — you already know you sent
+    // your own, and solo table-talk (muttering to yourself) never dings.
+    if(!mine) SFX.chat();
   },
   send(){
     const t=document.getElementById("chattxt");
