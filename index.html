@@ -635,10 +635,20 @@ const MONSTERS = {
   eel:      {name:"Chancel Eel",    hp:"3d8",    ac:14, atk:5, dmg:"1d6+2", xp:130, fl:"longer than the doorway it came through"},
   tidepriest:{name:"Tide Priest",   hp:"4d8+4",  ac:14, atk:5, dmg:"1d8+2", xp:220, fl:"vestments heavy with water that never dries"},
   brine:    {name:"Brine Revenant", hp:"4d8+8",  ac:15, atk:6, dmg:"1d8+3", xp:290, fl:"salt-crusted, and it remembers drowning"},
+  crows:    {name:"Gallows Crows",  hp:"2d6",    ac:13, atk:3, dmg:"1d4",   xp:55,  fl:"far too many of them, and none of them calling"},
+  boar:     {name:"Thornback Boar", hp:"2d8+2",  ac:13, atk:4, dmg:"1d6+1", xp:85,  fl:"briar grown clean through the hide and out again"},
+  wolf:     {name:"Hollow Wolf",    hp:"3d8",    ac:13, atk:4, dmg:"1d6+2", xp:110, fl:"ribs like a barrel, and nothing behind the eyes"},
+  briar:    {name:"Briar Thing",    hp:"3d8",    ac:14, atk:4, dmg:"1d6+1", xp:115, fl:"a shape that is mostly thorn and partly intent"},
+  hedge:    {name:"Hedge Witch",    hp:"3d8+3",  ac:13, atk:5, dmg:"1d6+2", xp:175, fl:"she was expecting somebody, and it was not you"},
+  stag:     {name:"Antlered Watcher",hp:"4d8+4", ac:14, atk:5, dmg:"1d8+2", xp:215, fl:"it stands too upright, and the antlers are wearing a face"},
+  troll:    {name:"Mossback Troll", hp:"4d8+8",  ac:15, atk:6, dmg:"1d8+3", xp:290, fl:"green to the elbow, and the green is doing the holding"},
+  warden:   {name:"The Bark Warden",hp:"5d8+10", ac:16, atk:6, dmg:"1d10+2",xp:315, fl:"bark over armour over something that used to be a man"},
   VETHKAR:  {name:"Vethkar the Interred", hp:"5d8+16", ac:14, atk:6, dmg:"1d10+2", xp:700,
              fl:"crowned, and awake, and pleased to see you", boss:true},
   MAERWEN:  {name:"Maerwen the Unebbing", hp:"5d8+18", ac:15, atk:6, dmg:"1d10+2", xp:750,
-             fl:"she has been holding her breath for four hundred years", boss:true}
+             fl:"she has been holding her breath for four hundred years", boss:true},
+  SILVANE:  {name:"Silvane of the Nine Rings", hp:"5d8+18", ac:15, atk:6, dmg:"1d10+2", xp:760,
+             fl:"nine rings of heartwood, and a voice in every one of them", boss:true}
 };
 
 /* ------------------------------------------------------------ dungeons --- */
@@ -668,6 +678,52 @@ const DUNGEONS = {
       {n:"The Sleeping Niches",  f:"Alcoves cut for bodies. Most are empty. Most were not always."},
       {n:"The Cracked Font",     f:"A basin split clean in two, and dry, and stained dark at the seam."},
       {n:"The Waiting Room",     f:"Stone benches face a door that has no handle on this side."}
+    ]
+  },
+  wake:{
+    name:"The Verdant Wake", short:"the wood", goal:"the Greenheart Seed", place:"clearing",
+    enter:"The track gives out, the canopy closes over, and the wood begins.",
+    nav:{down:"Go <b>deeper</b> into the wood", up:"<b>Follow</b> the light back",
+         out:"<b>Walk</b> out under open sky"},
+    hook:"Three summers ago the wood stopped at the old wall. It does not stop there now, and it has "+
+         "taken two hamlets on its way. They say there is a seed at the middle of it, still beating.",
+    task:"Go into the wood. Cut out the Greenheart Seed. Do not answer anything that calls you by name.",
+    boss:"SILVANE", prize:"The Greenheart Seed",
+    tables:{early:["crows","rat","boar"], mid:["wolf","briar","spider","boar","grubs","hedge"],
+            late:["stag","troll","warden","hedge","briar","whisper"]},
+    escape:["wolf","briar","stag","crows"],
+    vault:{n:"The Ninefold Ring", f:"Nine trunks grown from one root, and at the centre the Greenheart Seed, beating."},
+    rooms:[
+      {n:"The Broken Wall",      f:"A boundary wall, shouldered aside by roots that came from the wrong side of it."},
+      {n:"The Coppice",          f:"Every stool cut level, decades ago, and every one grown back wrong."},
+      {n:"The Charcoal Burn",    f:"A flattened circle of black ground. The pile is still warm."},
+      {n:"The Deer Path",        f:"A track worn shin-deep by something that walks it often and heavily."},
+      {n:"The Hollow Oak",       f:"An oak split open like a door. There are steps cut inside it, going down."},
+      {n:"The Bee Garden",       f:"Skeps in a row, all of them humming, none of them with bees in."},
+      {n:"The Withy Beds",       f:"Willow standing in still water, cut and bundled by nobody in particular."},
+      {n:"The Hanging Grove",    f:"Old ropes, gone green, and the branches grown fat around them."},
+      {n:"The Fen Margin",       f:"Ground that gives, then holds, then gives again a little too late."},
+      {n:"The Fallen Giant",     f:"A trunk across the way, big enough to be a wall, hollow enough to be a house."},
+      {n:"The Toll Stone",       f:"A standing stone with a cup cut into the top, and the cup is not empty."},
+      {n:"The Nurse Log",        f:"A dead tree carrying a dozen live ones, all of them leaning the same way."},
+      {n:"The Quiet Ride",       f:"A straight cut through the trees, mown, and mown recently."}
+    ],
+    adj:["close and green","hung with mist","thick with flies","gone quiet","dripping",
+         "loud with wind in leaves","overgrown past passing","warm and still","deep in leaf litter",
+         "shot through with low sun","cold under the canopy"],
+    detail:[
+      "Something has been rubbing the bark smooth at shoulder height.",
+      "Every tree on this side carries the same three cuts, old and healed over.",
+      "The birds went quiet a while back and have not started again.",
+      "Bones, small ones, are worked into a low fence nobody finished.",
+      "The moss grows on all four sides here, which it should not.",
+      "A child's shoe is nailed to a trunk, well above where a child could reach.",
+      "Deadfall lies in one direction only, as though it was combed.",
+      "There is a smell of cut grass, and under it, something sweeter.",
+      "The path is edged with white stones, spaced out carefully, and recently.",
+      "Bracken is flattened in a long oval, the size of something sleeping.",
+      "Sap runs from a fresh cut that nobody here made.",
+      "The canopy closes overhead until it is dusk at midday."
     ]
   },
   chancel:{
@@ -774,6 +830,8 @@ function newPC(name, cls, anc, bg, av){
 }
 
 // Trait lookups, so the rules engine never has to know about strings twice.
+// What a room is called in the dungeon you are actually in.
+const PLACE = ()=> (S && DUNGEONS[S.dun] && DUNGEONS[S.dun].place) || "chamber";
 const hasAnc = (pc, t) => ANCESTRIES[pc.anc] && ANCESTRIES[pc.anc].trait===t;
 const hasBg  = (pc, t) => BACKGROUNDS[pc.bg] && BACKGROUNDS[pc.bg].trait===t;
 const skilledIn = (pc, s) => (pc.skills||CLASSES[pc.cls].skill).includes(s);
@@ -790,7 +848,7 @@ function newWorld(pc, dun){
     // Traitor Mode — off by default. `idx`/`secretName` are the whole secret;
     // everything that keeps them hidden from other players lives in how the
     // network layer redacts this object before it goes out (see redactTraitor).
-    traitor:{active:false, idx:null, secretName:null, revealed:false,
+    traitor:{active:false, idx:null, secretName:null, revealed:false, awakened:false,
              sabotageLeft:0, aidLeft:0, strikesLeft:0}
   };
 }
@@ -800,14 +858,17 @@ function newWorld(pc, dun){
 // has to null-check S.traitor.
 function ensureTraitorField(state){
   if(!state.traitor) state.traitor={active:false, idx:null, secretName:null, revealed:false,
-                                     sabotageLeft:0, aidLeft:0, strikesLeft:0};
+                                     awakened:false, sabotageLeft:0, aidLeft:0, strikesLeft:0};
+  if(state.traitor.awakened===undefined) state.traitor.awakened=false;
   return state;
 }
 
 function makeMap(dun){
   const D=DUNGEONS[dun];
   const pool=R.shuffle(D.rooms).slice(0,9);
-  const adjs=R.shuffle(T.adj), dets=R.shuffle(T.detail);
+  // A dungeon may carry its own flavour pools; the stone-and-ash defaults in
+  // T read badly in a wood, and would read badly again in whatever comes next.
+  const adjs=R.shuffle(D.adj||T.adj), dets=R.shuffle(D.detail||T.detail);
   return pool.concat([D.vault]).map((r,i)=>({
     ...r, i, adj:adjs[i%adjs.length], det:dets[i%dets.length],
     searched:false, cleared:false,
@@ -1199,7 +1260,7 @@ const Narrator = {
       case "insight":
         return `<span class="hit">${S.fight
           ? `${N.nm(e.src)} reads it better now. ${S.fight.the} can take perhaps <b>${S.fight.hp}</b> more.`
-          : `${N.nm(e.src)} gets the measure of the place — <b>${Math.max(0,S.map.length-1-S.at)}</b> chamber${S.map.length-2-S.at===0?"":"s"} still to the vault.`}</span>`;
+          : `${N.nm(e.src)} gets the measure of the place — <b>${Math.max(0,S.map.length-1-S.at)}</b> ${PLACE()}${S.map.length-2-S.at===0?"":"s"} still to the vault.`}</span>`;
       case "talkalone": return `<span class="sys">${N.nm(e.src)} speaks, and the barrow takes the sound and keeps it.</span>`;
       case "talkdown": return `<span class="hit">${N.nm(e.src)} keeps talking</span> — ${RL(`CHA ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hit">and whatever is left in ${e.name.toLowerCase()} decides you are not worth it. It withdraws.</span>`;
       case "talkhold": return `${N.nm(e.src)} keeps talking — ${RL(`CHA ${e.roll.tot} vs DC ${e.roll.dc}`)} — and ${e.name.toLowerCase()} <span class="hit">hesitates</span>, long enough to cost it the turn.`;
@@ -1379,7 +1440,7 @@ function answerQuery(toks){
   if(any("party","team","who","allies","everyone","others"))
     return `<span class="sys">${S.party.map(p=>`${p.name} the ${p.cls.toLowerCase()} (${p.down?"down":`${p.hp}/${p.hpMax}`})`).join(" · ")}</span>`;
   if(any("where","room","chamber","deep","depth","far","place","location","am"))
-    return `<span class="sys">${S.map[S.at].n} — chamber ${S.at+1} of ${S.map.length}. `+
+    return `<span class="sys">${S.map[S.at].n} — ${PLACE()} ${S.at+1} of ${S.map.length}. `+
            `${S.flags.crown?"You are climbing out.":`${S.map.length-1-S.at} between you and the vault.`}</span>`;
   if(S.fight && any("it","monster","creature","enemy","fighting","that","thing","this"))
     return `<span class="sys">${S.fight.the} — ${S.fight.fl}. Armour class ${S.fight.ac}. `+
@@ -1472,7 +1533,7 @@ function parse(text){
     case "search":
       if(has(toks,"pack")) return ok("inv");
       if(fighting) return ask("Not while that is looking at you.", [["Attack it","attack"],["Flee","flee"], ORACLE]);
-      if(room.searched) return ask("This chamber has been gone over already.", [["Look again","look"],["Move on","move"], ORACLE]);
+      if(room.searched) return ask(`This ${PLACE()} has been gone over already.`, [["Look again","look"],["Move on","move"], ORACLE]);
       return ok("search");
 
     case "attack":
@@ -1540,9 +1601,13 @@ function parse(text){
 // *who*, before the reveal makes it moot for everyone.
 function redactTraitor(state, forIdx){
   const clone=JSON.parse(JSON.stringify(state));
-  if(clone.traitor && clone.traitor.active && !clone.traitor.revealed && clone.traitor.idx!==forIdx){
-    clone.traitor.idx=null;
-    clone.traitor.secretName=null;
+  const t=clone.traitor;
+  if(t && t.active && !t.revealed && t.idx!==forIdx){
+    // Not just "who" — "whether". Anyone but the traitor is handed a state
+    // in which Traitor Mode was never switched on at all, counters included,
+    // so a modified client has nothing to read either.
+    t.active=false; t.awakened=false; t.idx=null; t.secretName=null;
+    t.sabotageLeft=0; t.aidLeft=0; t.strikesLeft=0;
   }
   return clone;
 }
@@ -1688,6 +1753,7 @@ const Net = {
     if(msg.t==="chat"){ Chat.line(msg.from, msg.text); return; }
     if(msg.t==="music"){ Music.receiveShare(msg.url, msg.from); return; }
     if(msg.t==="traitorPick"){ G.traitorNameModal(); return; }
+    if(msg.t==="traitorAwake"){ G.traitorAwakeModal(); return; }
     if(msg.t==="full"){ modal(`<h3>That party is full</h3><p>Four is the limit.</p>
       <button class="ch" onclick="closeModal()">Close</button>`); return; }
     if(msg.t==="state"){
@@ -2017,7 +2083,7 @@ function scene(title){
 function introLines(){
   const r=S.map[S.at];
   const lines=[{k:"h", html:r.n}];
-  lines.push({k:"p", html:`The chamber is ${r.adj}. ${r.f} ${r.det}`});
+  lines.push({k:"p", html:`The ${PLACE()} is ${r.adj}. ${r.f} ${r.det}`});
   if(S.fight) lines.push({k:"p", html:`<span class="hurt">${S.fight.the} is here — the fight is already on.</span>`});
   return lines;
 }
@@ -2235,7 +2301,7 @@ describeRoom(first){
     out(`You come back through ${r.n.toLowerCase()}. It is not as you left it — the ${r.adj} air has gone
          thin and moving, and what you are carrying is very cold.`);
   else
-    out(`${first?`The steps end and ${D.short} begins. `:""}The chamber is ${r.adj}. ${r.f} ${r.det}`);
+    out(`${first?(D.enter||`The steps end and ${D.short} begins.`)+" ":""}The ${PLACE()} is ${r.adj}. ${r.f} ${r.det}`);
 
   if(r.mob && !r.cleared){
     const m=spawn(r.mob);
@@ -2255,8 +2321,10 @@ describeRoom(first){
     out(`<span class="sys">You hear ${R.pick(T.sound)}.</span>`);
     S.acted=[]; S.active=conscious()[0]??0;
   }
-  // A rare, unattributed shiver — never enough to point at anyone.
-  if(S.traitor && S.traitor.active && !S.traitor.revealed && S.party.length>1 && R.d(6)===1)
+  // A rare, unattributed shiver. It fires at the same rate in every party,
+  // traitor or no traitor — gated on Traitor Mode it was a tell, because a
+  // table that never saw one could conclude nobody had been chosen.
+  if(S.party.length>1 && R.d(6)===1)
     out(`<span class="sys">${R.pick(T.traitorHint)}</span>`);
   G.choices();
 },
@@ -2471,6 +2539,15 @@ async perform(a, action, arg, target){
     // screen. Both reuse ordinary event types (scrape/heal) so the shared
     // log reads as plain bad luck or a lucky break — nothing points at
     // anyone, which is the entire point.
+    // The traitor's own decision to stop being one of you. Only reachable
+    // from their screen, only after the real boss has fallen, and never
+    // forced — declining simply means the button is still there next turn.
+    case "traitorTurn": {
+      if(!S.traitor || !S.traitor.active || S.traitor.revealed) break;
+      if(S.traitor.idx!==a || !S.traitor.awakened) break;
+      G.revealTraitor();
+      break;
+    }
     case "traitorSabotage": {
       if(!S.traitor || S.traitor.idx!==a || (S.traitor.sabotageLeft||0)<=0) break;
       S.traitor.sabotageLeft--;
@@ -2529,8 +2606,14 @@ async resolve(a, ev, spent){
     if(up.length){ up.forEach(p=>{ p.down=false; p.hp=1; });
       out(`<span class="hit">${up.map(p=>p.name).join(" and ")} get${up.length>1?"":"s"} hauled upright — one hit point and a bad hour ahead.</span>`); }
     if(boss){
-      if(S.traitor && S.traitor.active && !S.traitor.revealed) G.revealTraitor();
-      else out(`<span class="hit">The crown is unguarded now.</span>`);
+      out(`<span class="hit">The crown is unguarded now.</span>`);
+      // The traitor is not dragged out of hiding by the boss dying any more.
+      // They are simply told, on their own screen, that the door is open —
+      // and they walk through it whenever they choose, or never.
+      if(S.traitor && S.traitor.active && !S.traitor.revealed && !S.traitor.awakened){
+        S.traitor.awakened=true;
+        G.notifyTraitorAwake();
+      }
     }
   }
 
@@ -2614,21 +2697,42 @@ toggleTraitorMode(){
   if(S.traitor.active){
     if(S.traitor.revealed){ out(`<span class="sys">Too late for that now.</span>`); }
     else{
-      S.traitor.active=false; S.traitor.idx=null; S.traitor.secretName=null;
-      out(`<span class="sys">Traitor Mode is off.</span>`);
+      S.traitor.active=false; S.traitor.awakened=false; S.traitor.idx=null; S.traitor.secretName=null;
+      out(`<span class="sys">Traitor Mode is off.</span>`, true);   // host's screen only
     }
   } else {
     if(S.party.length<2){ out(`<span class="sys">Needs at least two in the party for that.</span>`); }
     else{
-      S.traitor.active=true; S.traitor.revealed=false; S.traitor.secretName=null;
+      S.traitor.active=true; S.traitor.revealed=false; S.traitor.awakened=false; S.traitor.secretName=null;
       S.traitor.idx=R.int(S.party.length);
       S.traitor.sabotageLeft=3; S.traitor.aidLeft=3; S.traitor.strikesLeft=3;
-      out(`<span class="sys">Traitor Mode is on. Something has changed among you, though nothing shows on any face.</span>`);
+      // Host's screen only. Broadcasting this told the whole table a traitor
+      // existed, which is half the secret given away at the moment of arming.
+      out(`<span class="sys">Traitor Mode is on. Something has changed among you, though nothing shows on any face.</span>`, true);
     }
   }
   sync(); G.choices();
   if(Net.mode==="host"){ Net.push(); BUF=null; }
   if(S.traitor.active && S.traitor.idx!=null) G.promptTraitorName();
+},
+
+// Tells the traitor, and only the traitor, that the moment is theirs now.
+notifyTraitorAwake(){
+  const idx=S.traitor.idx;
+  if(idx===S.me){ G.traitorAwakeModal(); return; }
+  if(Net.mode==="host"){
+    const connId=PC(idx) && PC(idx).conn;
+    if(connId) Net.transport.to(connId, {t:"traitorAwake"});
+  }
+},
+traitorAwakeModal(){
+  modal(`<h3>The way is open</h3>
+    <p>${DUNGEONS[S.dun].name}'s master is dead, and whatever was holding you in shape died with it.
+       You can turn on them now, or walk out beside them as though nothing happened.</p>
+    <p>There is no clock on this. Keep playing as ${escHtml(ME().name)} for as long as you like —
+       one turn, the whole climb out, or forever. <b>Turn on them</b> sits on your screen until you
+       press it, and nobody else can see that it is there.</p>
+    <div class="navrow"><button class="ch go" onclick="closeModal()"><b>Understood</b></button></div>`);
 },
 
 promptTraitorName(){
@@ -2641,10 +2745,10 @@ promptTraitorName(){
 },
 traitorNameModal(){
   modal(`<h3>Something in you has changed</h3>
-    <p>You are the traitor. Nothing about you looks different yet — help this party, or don't;
-       either way, when ${DUNGEONS[S.dun].name}'s true master finally falls, you are what rises
-       in its place.</p>
-    <p>Choose the name you'll wear when that happens. Nobody else sees it until then.</p>
+    <p>You are the traitor. Nothing about you looks different yet — help this party, or don't.
+       Once ${DUNGEONS[S.dun].name}'s true master falls, turning on them becomes yours to do,
+       at a moment of your choosing. You are never made to.</p>
+    <p>Choose the name you'll wear if you do. Nobody else sees it until then.</p>
     <div class="namerow"><input id="tname" maxlength="20" placeholder="a name for what you'll become"></div>
     <div class="navrow"><button class="ch go" onclick="G.submitTraitorName()"><b>Seal it</b></button></div>`);
 },
@@ -2748,10 +2852,12 @@ choices(){
     add(`<b>Talk</b> to it`, ()=>G.attempt("talk"));
     add(`<b>Flee</b>`, ()=>G.attempt("flee"), true);
   } else {
+    const NAV=DUNGEONS[S.dun].nav||{};
     if(S.at===S.map.length-1 && !S.flags.crown) add(`<b>Take</b> ${DUNGEONS[S.dun].goal}`, ()=>G.act("take"), true);
-    else if(S.flags.crown) add(S.at<=0?`<b>Climb</b> out into daylight`:`<b>Climb</b> toward the surface`, ()=>G.act("move"));
-    else add(`<b>Go</b> deeper`, ()=>G.act("move"));
-    if(!r.searched) add(`<b>Search</b> the chamber`, ()=>G.attempt("search"));
+    else if(S.flags.crown) add(S.at<=0 ? (NAV.out||`<b>Climb</b> out into daylight`)
+                                       : (NAV.up ||`<b>Climb</b> toward the surface`), ()=>G.act("move"));
+    else add(NAV.down||`<b>Go</b> deeper`, ()=>G.act("move"));
+    if(!r.searched) add(`<b>Search</b> the ${PLACE()}`, ()=>G.attempt("search"));
     add(`<b>Look</b> around`, ()=>G.act("look"));
     if(S.party.some(p=>p.hp<p.hpMax)) add(`<b>Rest</b> <span style="color:var(--dim)">(risky)</span>`, ()=>G.act("rest"));
     if(me.potions>0 && me.hp<me.hpMax) add(`<b>Drink</b> a potion <span style="color:var(--dim)">(${me.potions})</span>`, ()=>G.act("potion"));
@@ -2759,6 +2865,9 @@ choices(){
   // Only the traitor's own screen ever renders these — the effects land as
   // ordinary bad luck or a lucky break in the shared log, never attributed.
   if(S.traitor && S.traitor.active && !S.traitor.revealed && S.traitor.idx===S.me){
+    if(S.traitor.awakened)
+      add(`<span style="color:var(--red)">Turn on them</span> <span style="color:var(--dim)">— whenever you like</span>`,
+        ()=>G.act("traitorTurn"), true);
     if((S.traitor.sabotageLeft||0)>0)
       add(`<span style="color:var(--purple)">Sabotage, quietly</span> <span style="color:var(--dim)">(${S.traitor.sabotageLeft})</span>`,
         ()=>G.attempt("traitorSabotage"));
@@ -2870,10 +2979,14 @@ help(){
        stops. Everyone dies only if everyone is down.</p>
     <p><b>Traitor Mode</b> (host only, needs two or more in the party) — open <b>Play with friends</b>
        while hosting to switch it on. One of you is secretly chosen as the traitor and gets a couple of
-       quiet extra options on your own turns, nobody else ever sees them. When the true final boss falls,
-       the traitor stops being an ally and becomes what the barrow was really protecting — under a name
-       only they chose, boosted, and fought like any other monster (with one bonus move that's theirs alone).
-       Nobody else is ever told who it was until that moment.</p>
+       quiet extra options on your own turns, nobody else ever sees them. Nobody else is told that the mode
+       is on at all — arming it is silent, and the state a guest's browser receives says it was never
+       switched on.</p>
+    <p>When the true final boss falls, the traitor is told privately that the way is open. Turning is
+       theirs to time: they can keep playing as themselves for one more turn, the whole climb out, or
+       for good. When they do turn, they become what the dungeon was really protecting — under a name
+       only they chose, boosted, and fought like any other monster (with one bonus move that's theirs
+       alone).</p>
     <p style="font-size:13px;color:var(--dim)">The host runs the rules. Guests send what they want to do
        and receive the result — they never roll, so a modified guest cannot cheat.</p>
 

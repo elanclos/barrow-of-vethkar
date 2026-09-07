@@ -17,14 +17,20 @@ underlying actions.
 - **Solo or multiplayer.** Host a game and share a link; up to three friends
   join as their own characters. The host's browser runs the rules; guests
   send intents and receive results, so a modified guest client can't cheat.
+- **Three dungeons** to choose from at character creation — a barrow, a
+  drowned chancel and a wood that will not stop growing — each with its own
+  monsters, rooms, atmosphere and prize.
 - **Six classes, five ancestries, six backgrounds**, each with mechanical
   effects (not just flavor text) built on the SRD 5.2.1 ruleset.
-- **Traitor Mode** (2+ players): the host can secretly arm it. One party
-  member is chosen at random as the traitor, invisibly to everyone — even
-  the host's own screen. They get secret sabotage/aid actions the rest of
-  the party only ever sees as ordinary bad luck or good fortune. Once the
-  real dungeon boss falls, the traitor is revealed as the true final boss
-  under a name only they chose.
+- **Traitor Mode** (2+ players): the host can secretly arm it. Arming it is
+  silent — nobody else is told the mode is even on, and the state their
+  browser receives says it was never switched on. One party member is chosen
+  at random as the traitor, invisibly to everyone, even the host's own
+  screen. They get secret sabotage/aid actions the rest of the party only
+  ever sees as ordinary bad luck or good fortune. Once the real dungeon boss
+  falls, the traitor alone is told the way is open, and chooses their own
+  moment to turn — one turn later, on the last step out, or never. When they
+  do, they become the true final boss under a name only they chose.
 - **Table music.** Paste a YouTube link and every viewer gets their own
   embedded player with real controls; the host's pick just seeds what's
   playing for everyone.
