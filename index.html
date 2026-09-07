@@ -529,7 +529,19 @@ const ANCESTRIES = {
                blurb:"Small, overlooked, and still here."},
   "Half-Orc": {bump:{str:2}, trait:"Relentless",
                tdesc:"Far harder to put down for good.",
-               blurb:"You have been counted out before. It did not take."}
+               blurb:"You have been counted out before. It did not take."},
+  Gnome:      {bump:{int:2}, trait:"Inventive",
+               tdesc:"+2 on anything solved by wit rather than steel.",
+               blurb:"Small enough to be overlooked. Clever enough that it rarely matters."},
+  Dragonborn: {bump:{str:1, cha:1}, trait:"Draconic Might",
+               tdesc:"Weapon strikes land 1 harder — old blood remembers how.",
+               blurb:"Something ancestral and scaled looks out through your eyes when the steel comes out."},
+  Tiefling:   {bump:{cha:2}, trait:"Infernal Resilience",
+               tdesc:"Traps and mishaps bite 2 less — your blood was never entirely your own.",
+               blurb:"Whatever looked back out of the old bloodline, it left you hard to kill by accident."},
+  "Half-Elf": {bump:{dex:1, cha:1}, trait:"Dual Heritage",
+               tdesc:"+2 talking your way out of it, +2 searching a room — neither world raised you alone.",
+               blurb:"Belonging fully to no single people, you learned early to read them all."}
 };
 
 /* ---------------------------------------------------------- background --- */
@@ -879,6 +891,14 @@ const Rules = {
     if(kind==="talk"   && hasBg(pc,"Silver Tongue")) b+=3;
     if(kind==="pray"   && hasBg(pc,"Devout")) b+=4;
     if(kind==="oracle" && abil==="int" && hasBg(pc,"Learned")) b+=3;
+    // Gnomish ingenuity isn't tied to one ability the way Scholar's book-learning
+    // is — it applies to the oracle no matter which stat the moment called on.
+    if(kind==="oracle" && hasAnc(pc,"Inventive")) b+=2;
+    // Half-Elf: raised between two peoples rather than fully inside either one —
+    // a flat, modest edge in both the social and the perceptive check, never
+    // the sharp +3 a dedicated Elf or Entertainer gets in just one of them.
+    if(kind==="talk"   && hasAnc(pc,"Dual Heritage")) b+=2;
+    if(kind==="search" && hasAnc(pc,"Dual Heritage")) b+=2;
     const r=R.d(20), tot=r+b;
     return {t:"check", abil, dc, r, b, tot, ok:tot>=dc, crit:r===20, fumble:r===1};
   },
@@ -898,6 +918,7 @@ const Rules = {
     let bonus=0;
     if(bonusDice){ bonus=R.dice(bonusDice[0], bonusDice[1]); dmg+=bonus; }
     if(pc.rage>0) dmg+=2;                                                   // barbarian
+    if(hasAnc(pc,"Draconic Might")) dmg+=1;                                 // dragonborn
     return [{t:"hit", src:a, vs:"mob", r, b, tot, dmg:Math.max(1,dmg), crit:r===20,
              sneak, bonus, adv, lucky, wpn:C.wpn.name}];
   },
@@ -1051,7 +1072,15 @@ function apply(events){
         if(e.lucky && typeof e.src==="number") PC(e.src).lucky=false;
         break;
       case "miss": if(typeof e.src==="number"){ PC(e.src).edge=false; if(e.lucky) PC(e.src).lucky=false; } break;
-      case "scrape": hurt(e.vs, e.dmg); break;
+      case "scrape":
+        // Tiefling resilience applies here rather than at each of scrape's
+        // three creation sites — one place, and the narrated number (read
+        // straight off this same event object afterward) comes out already
+        // correct. Mirrors how Stonecunning is applied where its damage is
+        // finalized rather than threaded through every caller.
+        if(hasAnc(PC(e.vs),"Infernal Resilience")) e.dmg=Math.max(1,e.dmg-2);
+        hurt(e.vs, e.dmg);
+        break;
       case "heal": { const p=PC(e.vs); p.hp=Math.min(p.hpMax, p.hp+e.amt); break; }
       case "edge": PC(e.vs).edge=true; break;
       case "rage": PC(e.src).rage=1; break;
