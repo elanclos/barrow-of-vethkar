@@ -567,9 +567,30 @@ const BACKGROUNDS = {
 // inventory before anything happens, same "never invent capability" rule
 // as everywhere else. "throw" items roll to hit like a weapon and deal
 // real damage; "scatter" items have no roll and apply a status instead.
+// "utility" items are each background's own starting kit piece — one
+// guaranteed, no-roll effect apiece, spent once, mirroring the exact check
+// kind that background's own trait already leans on (never a second, wider
+// bonus stacked on top of it): rations skip rest's monster-encounter risk,
+// lockpicks guarantee an escape, prayer beads a real answer, a field
+// notebook a real find, snare wire a snare, a lute a real talk-down. `util`
+// picks which Rules.use* method runs; `combat` says whether it only makes
+// sense mid-fight (true) or only outside one (false) — perform() gates on it
+// the same way it already gates throw/scatter on S.fight.
 const ITEM_EFFECTS = {
-  "Oil flask": {kind:"throw",   dmg:"1d6+2", ignites:true},
-  "Caltrops":  {kind:"scatter"}
+  "Oil flask":          {kind:"throw",   dmg:"1d6+2", ignites:true},
+  "Caltrops":           {kind:"scatter"},
+  "Campaign rations":   {kind:"utility", util:"rations",   combat:false},
+  "Set of lockpicks":   {kind:"utility", util:"lockpicks", combat:true},
+  "Prayer beads":       {kind:"utility", util:"beads",     combat:false},
+  "Field notebook":     {kind:"utility", util:"notebook",  combat:false},
+  "Coil of snare wire": {kind:"utility", util:"wire",      combat:true},
+  "Battered lute":      {kind:"utility", util:"lute",      combat:true}
+};
+// Button verb for each utility item's choices()-panel entry, keyed by
+// ITEM_EFFECTS[item].util.
+const UTIL_VERB = {
+  rations:"Eat", lockpicks:"Pick the way out with", beads:"Pray with",
+  notebook:"Search with", wire:"Set", lute:"Play"
 };
 
 /* -------------------------------------------------------------- classes --- */
@@ -1021,6 +1042,42 @@ const Rules = {
   scatterCaltrops(a, item){
     return [{t:"itemused", src:a, item}, {t:"rattle", src:a, n:1}];
   },
+
+  // The six background kit items below all follow the same shape: consume
+  // the item, then produce the ordinary event for the check it aids —
+  // marked `auto:true` so Narrator.line knows to skip the "d20 X+Y vs DC Z"
+  // clause that a real roll would have earned (see fled/talkdown/pray/
+  // searched below). No roll happens; there is nothing to show.
+  useRations(a){
+    const ev=[{t:"itemused", src:a, item:"Campaign rations"},
+              {t:"note", text:"The party stops long enough for a proper meal."}];
+    conscious().forEach(i=>{
+      const t=PC(i);
+      ev.push({t:"heal", vs:i, amt:Math.max(2, t.hpMax-t.hp)});
+    });
+    return ev;                             // same full heal as rest(), no wandering-monster roll
+  },
+  useLockpicks(a){
+    return [{t:"itemused", src:a, item:"Set of lockpicks"}, {t:"fled", src:a, auto:true}];
+  },
+  usePrayerBeads(a){
+    const pc=PC(a);
+    const ev=[{t:"itemused", src:a, item:"Prayer beads"}, {t:"pray", src:a, ok:true, auto:true}];
+    ev.push(pc.hp<pc.hpMax ? {t:"heal", vs:a, amt:R.d(6)+pc.lvl} : {t:"edge", vs:a});
+    return ev;
+  },
+  useNotebook(a, room){
+    const ev=[{t:"itemused", src:a, item:"Field notebook"}, {t:"searched", src:a, ok:true, auto:true}];
+    if(room.loot) ev.push({t:"loot", vs:a, what:room.loot});
+    return ev;
+  },
+  useSnareWire(a, item){
+    return [{t:"itemused", src:a, item}, {t:"rattle", src:a, n:1}];   // same status caltrops already uses
+  },
+  useLute(a, m){
+    return [{t:"itemused", src:a, item:"Battered lute"},
+            {t:"talkdown", src:a, auto:true, name:m.the, xp:m.xp, mAct:true}];
+  },
   power(a, target){
     const pc=PC(a), p=pc.power, ev=[];
     if(p.uses<=0) return [{t:"nopower", src:a, name:p.name}];
@@ -1280,12 +1337,16 @@ const Narrator = {
       case "nopower": return `<span class="sys">${N.nm(e.src)} reaches for ${e.name} and finds nothing left.</span>`;
       case "note": return e.text;
       case "searched":
-        return `${N.nm(e.src)} goes over the ${PLACE()} properly — ${RL(`WIS ${e.roll.r}+${e.roll.b}=${e.roll.tot} vs DC ${e.roll.dc}`)} — ${e.roll.ok?"and the patience is rewarded.":"and turns up nothing worth the time."}`;
+        return e.auto
+          ? `${N.nm(e.src)} goes over the ${PLACE()} with notes in hand — and the patience is rewarded.`
+          : `${N.nm(e.src)} goes over the ${PLACE()} properly — ${RL(`WIS ${e.roll.r}+${e.roll.b}=${e.roll.tot} vs DC ${e.roll.dc}`)} — ${e.roll.ok?"and the patience is rewarded.":"and turns up nothing worth the time."}`;
       case "loot": return `<span class="hit">${N.nm(e.vs)} finds ${e.what}.</span>`;
       case "noise": return `<span class="hurt">Something goes over with a clatter. The sound travels a long way down here.</span>`;
       case "rest": return `You wedge yourselves into a corner where nothing can come at your backs, and close your eyes.`;
       case "wandering": return `<span class="hurt">The rest does not finish.</span>`;
-      case "fled": return `<span class="hit">${N.nm(e.src)} breaks away and the party goes with them</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
+      case "fled": return e.auto
+        ? `<span class="hit">${N.nm(e.src)} slips the lock and the party is through before anything notices.</span>`
+        : `<span class="hit">${N.nm(e.src)} breaks away and the party goes with them</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
       case "nofled": return `<span class="hurt">${N.nm(e.src)} turns to run and it is already moving</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
       case "xp": return `<span class="sys">+${e.share||e.amt} experience each.${e.levels?" <b>"+e.levels.join(". ")+".</b>":""}</span>`;
       case "crown": return `<span class="hit">${DUNGEONS[S.dun].prize} is lighter than it looks, and colder than the ${PLACE()}.</span>`;
@@ -1295,10 +1356,14 @@ const Narrator = {
           ? `${N.nm(e.src)} reads it better now. ${S.fight.the} can take perhaps <b>${S.fight.hp}</b> more.`
           : `${N.nm(e.src)} gets the measure of the place — <b>${Math.max(0,S.map.length-1-S.at)}</b> ${PLACE()}${S.map.length-2-S.at===0?"":"s"} still to the vault.`}</span>`;
       case "talkalone": return `<span class="sys">${N.nm(e.src)} speaks, and the barrow takes the sound and keeps it.</span>`;
-      case "talkdown": return `<span class="hit">${N.nm(e.src)} keeps talking</span> — ${RL(`CHA ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hit">and whatever is left in ${e.name.toLowerCase()} decides you are not worth it. It withdraws.</span>`;
+      case "talkdown": return e.auto
+        ? `<span class="hit">${N.nm(e.src)} picks out a tune on the battered lute, low and strange</span> — and whatever is left in ${e.name.toLowerCase()} decides you are not worth it. It withdraws.`
+        : `<span class="hit">${N.nm(e.src)} keeps talking</span> — ${RL(`CHA ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hit">and whatever is left in ${e.name.toLowerCase()} decides you are not worth it. It withdraws.</span>`;
       case "talkhold": return `${N.nm(e.src)} keeps talking — ${RL(`CHA ${e.roll.tot} vs DC ${e.roll.dc}`)} — and ${e.name.toLowerCase()} <span class="hit">hesitates</span>, long enough to cost it the turn.`;
       case "talkfail": return `<span class="miss">${N.nm(e.src)} starts to speak</span> — ${RL(`CHA ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hurt">and it is not listening.</span>`;
-      case "pray": return e.ok
+      case "pray": return e.auto
+        ? `<span class="hit">${N.nm(e.src)} works the prayer beads through worn fingers and asks</span> — <span class="hit">and something older than the barrow inclines toward them.</span>`
+        : e.ok
         ? `<span class="hit">${N.nm(e.src)} puts a forehead to the cold stone and asks</span> — ${RL(`WIS ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="hit">and something older than the barrow inclines toward them.</span>`
         : `${N.nm(e.src)} asks — ${RL(`WIS ${e.roll.tot} vs DC ${e.roll.dc}`)} — <span class="sys">and nothing answers. That is usually how it goes.</span>`;
       case "hidealone": return `<span class="sys">${N.nm(e.src)} presses into the shadow. There is nothing here to hide from.</span>`;
@@ -2554,6 +2619,18 @@ async perform(a, action, arg, target){
       if(!eff || !pc.inv.includes(item)) break;
       if(eff.kind==="throw" && S.fight){ ev=Rules.throwItem(a, S.fight, item); spent=true; }
       else if(eff.kind==="scatter" && S.fight){ ev=Rules.scatterCaltrops(a, item); spent=true; }
+      else if(eff.kind==="utility" && !!S.fight===eff.combat){
+        const room=S.map[S.at];
+        switch(eff.util){
+          case "rations":   ev=Rules.useRations(a); break;
+          case "lockpicks": ev=Rules.useLockpicks(a); break;
+          case "beads":     ev=Rules.usePrayerBeads(a); break;
+          case "notebook":  ev=Rules.useNotebook(a, room); break;
+          case "wire":      ev=Rules.useSnareWire(a, item); break;
+          case "lute":      ev=Rules.useLute(a, S.fight); break;
+        }
+        if(ev) spent=true;
+      }
       break;
     }
 
@@ -2883,10 +2960,17 @@ choices(){
     // One button per distinct item with a real combat effect currently
     // carried — counts collapse duplicates (two oil flasks shows one
     // button with a ×2), same idea as the potion count above.
-    [...new Set(me.inv.filter(i=>ITEM_EFFECTS[i]))].forEach(item=>{
+    [...new Set(me.inv.filter(i=>ITEM_EFFECTS[i] && ITEM_EFFECTS[i].kind!=="utility"))].forEach(item=>{
       const n=me.inv.filter(i=>i===item).length;
       const verb=ITEM_EFFECTS[item].kind==="throw" ? "Throw" : "Scatter";
       add(`<b>${verb}</b> ${item.toLowerCase()} <span style="color:var(--dim)">(${n})</span>`,
+        ()=>G.act("useItem", null, item));
+    });
+    // Background kit items with a guaranteed effect (see ITEM_EFFECTS/Rules.use*)
+    // — only the ones that make sense mid-fight show up here.
+    [...new Set(me.inv.filter(i=>ITEM_EFFECTS[i] && ITEM_EFFECTS[i].kind==="utility" && ITEM_EFFECTS[i].combat))].forEach(item=>{
+      const n=me.inv.filter(i=>i===item).length;
+      add(`<b>${UTIL_VERB[ITEM_EFFECTS[item].util]}</b> ${item.toLowerCase()} <span style="color:var(--dim)">(${n})</span>`,
         ()=>G.act("useItem", null, item));
     });
     const down=S.party.map((p,i)=>({p,i})).filter(x=>x.p.down);
@@ -2904,6 +2988,13 @@ choices(){
     add(`<b>Look</b> around`, ()=>G.act("look"));
     if(S.party.some(p=>p.hp<p.hpMax)) add(`<b>Rest</b> <span style="color:var(--dim)">(risky)</span>`, ()=>G.act("rest"));
     if(me.potions>0 && me.hp<me.hpMax) add(`<b>Drink</b> a potion <span style="color:var(--dim)">(${me.potions})</span>`, ()=>G.act("potion"));
+    // Same idea as the combat-side block above, for the kit items that only
+    // make sense outside a fight.
+    [...new Set(me.inv.filter(i=>ITEM_EFFECTS[i] && ITEM_EFFECTS[i].kind==="utility" && !ITEM_EFFECTS[i].combat))].forEach(item=>{
+      const n=me.inv.filter(i=>i===item).length;
+      add(`<b>${UTIL_VERB[ITEM_EFFECTS[item].util]}</b> ${item.toLowerCase()} <span style="color:var(--dim)">(${n})</span>`,
+        ()=>G.act("useItem", null, item));
+    });
   }
   // Only the traitor's own screen ever renders these — the effects land as
   // ordinary bad luck or a lucky break in the shared log, never attributed.
