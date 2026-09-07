@@ -77,7 +77,9 @@ Scene: ${context}.`;
           { role: "user", content: text },
         ],
         temperature: 0.8,
-        max_tokens: 220,
+        max_tokens: 420,
+        reasoning_effort: "low",
+        reasoning_format: "hidden",
       }),
       signal: controller.signal,
     });
