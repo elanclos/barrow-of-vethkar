@@ -3631,6 +3631,16 @@ document.getElementById("chattxt").addEventListener("keydown",e=>{
 document.getElementById("txt").addEventListener("keydown",e=>{ if(e.key==="Enter") submit(); });
 document.getElementById("modal").addEventListener("click",e=>{ if(e.target.id==="modal" && !MODAL_STICKY) closeModal(); });
 
+// Unlock the audio context on the very first interaction with the page,
+// whatever it is — a character-creator click, a choices button, pressing
+// Enter in a text box, tapping anywhere. SFX.host()/join() already prime it
+// for the one specific path that matters most (an incoming chat message
+// arriving before anything else in the session has made a sound), but this
+// catches every other path too rather than depending on guessing the right
+// click to hang it off of. Fires once, then gets out of the way.
+["pointerdown","touchstart","keydown"].forEach(evt=>
+  document.addEventListener(evt, ()=>SFX.ensure(), {once:true, capture:true}));
+
 G.start();
 </script>
 </body>
