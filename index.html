@@ -580,7 +580,10 @@ const ANCESTRIES = {
                blurb:"Whatever looked back out of the old bloodline, it left you hard to kill by accident."},
   "Half-Elf": {bump:{dex:1, cha:1}, trait:"Dual Heritage",
                tdesc:"+2 talking your way out of it, +2 searching a room — neither world raised you alone.",
-               blurb:"Belonging fully to no single people, you learned early to read them all."}
+               blurb:"Belonging fully to no single people, you learned early to read them all."},
+  Triton:     {bump:{con:1, wis:1}, trait:"Tidebound",
+               tdesc:"Half as likely to be swept off by a current, and never swept far from home.",
+               blurb:"The deep does not frighten you. It raised you, and it still knows your name."}
 };
 
 /* ---------------------------------------------------------- background --- */
@@ -708,7 +711,17 @@ const MONSTERS = {
   MAERWEN:  {name:"Maerwen the Unebbing", hp:"5d8+18", ac:15, atk:6, dmg:"1d10+2", xp:750,
              fl:"she has been holding her breath for four hundred years", boss:true},
   SILVANE:  {name:"Silvane of the Nine Rings", hp:"5d8+18", ac:15, atk:6, dmg:"1d10+2", xp:760,
-             fl:"nine rings of heartwood, and a voice in every one of them", boss:true}
+             fl:"nine rings of heartwood, and a voice in every one of them", boss:true},
+  crab:     {name:"Reef Crab",       hp:"2d6",    ac:14, atk:3, dmg:"1d4+1", xp:45,  fl:"claws like shears, and no hurry at all"},
+  shoal:    {name:"Biting Shoal",    hp:"2d8",    ac:11, atk:3, dmg:"1d6",   xp:70,  fl:"a hundred small mouths acting as one"},
+  sahuagin: {name:"Sahuagin Raider", hp:"3d8",    ac:13, atk:4, dmg:"1d6+2", xp:110, fl:"gill-slit and spear-armed, and it did not come alone"},
+  angler:   {name:"Angler Horror",   hp:"3d8+3",  ac:13, atk:4, dmg:"1d8+1", xp:140, fl:"a lure like a lantern, and teeth behind the light"},
+  kelp:     {name:"Kelp Strangler",  hp:"3d8+3",  ac:12, atk:4, dmg:"1d6+2", xp:130, fl:"rope-thick fronds that do not let go"},
+  shark:    {name:"Reef Shark",      hp:"4d8+4",  ac:14, atk:5, dmg:"1d8+2", xp:190, fl:"a shadow that moves faster than the water around it"},
+  coralgolem:{name:"Coral Golem",    hp:"4d8+10", ac:16, atk:5, dmg:"1d8+3", xp:270, fl:"reef grown into the shape of something that hits back"},
+  captain:  {name:"The Drowned Captain", hp:"4d8+8", ac:14, atk:5, dmg:"1d8+2", xp:260, fl:"epaulettes of barnacle, and a wheel he still thinks he's holding"},
+  REEFQUEEN:{name:"Nyxara the Coral Sovereign", hp:"5d8+18", ac:15, atk:6, dmg:"1d10+2", xp:770,
+             fl:"crowned in living coral, and the reef listens when she moves", boss:true}
 };
 
 /* ------------------------------------------------------------ dungeons --- */
@@ -816,6 +829,56 @@ const DUNGEONS = {
       {n:"The Almonry",          f:"Where the poor were fed. The tables are set. The bowls are full of silt."},
       {n:"The Sea Gate",         f:"A portcullis of green bronze, raised, and jammed with weed."}
     ]
+  },
+  reef:{
+    name:"The Sunken Reef", short:"the reef", goal:"the Tidecrown Pearl", place:"grotto",
+    enter:"The water closes overhead, cold and then not cold, and the reef begins.",
+    hook:"A trench opened off the shoal road last spring and the reef came up out of it — coral where "+
+         "there was only mud, and something crowned moving through the coral. Fishing boats stopped "+
+         "coming back from that stretch of water.",
+    task:"Go down into the reef. Take the Tidecrown Pearl. Do not trust the current to bring you back the way you went.",
+    boss:"REEFQUEEN", prize:"The Tidecrown Pearl",
+    tables:{early:["crab","shoal","eel"], mid:["sahuagin","angler","kelp","eel","shoal"],
+            late:["shark","coralgolem","captain","sahuagin","angler"]},
+    escape:["shark","sahuagin","captain","eel"],
+    vault:{n:"The Pearl Grotto", f:"A dome of coral grown around an open shell, and in it the Tidecrown Pearl, still wet with more than water."},
+    rooms:[
+      {n:"The Shelf Break",      f:"The seabed drops away all at once, into water with no bottom you can see."},
+      {n:"The Ballast Field",    f:"Stones dumped by ships that never came back for them, grown thick with coral."},
+      {n:"The Anemone Garden",   f:"Colour everywhere, and every bit of it closes when you get near."},
+      {n:"The Wreck Hull",       f:"A ship's ribs, upside down, home to things that were not fish."},
+      {n:"The Bone Current",     f:"A steady flow of water thick with fine white sediment that is not sand."},
+      {n:"The Kelp Forest",      f:"Fronds taller than a mast, and the light through them the colour of a bruise."},
+      {n:"The Salt Chimney",     f:"A vent of hot water rising through cold, ringed with things that should not live here."},
+      {n:"The Pearl Beds",       f:"Rows of shells, most open and empty, a few closed very tight."},
+      {n:"The Sunken Chapel",    f:"A drowned shrine to some other sea, the icons worn featureless by current."},
+      {n:"The Grotto Stair",     f:"Steps cut into living coral, descending further than steps should need to."},
+      {n:"The Net Yard",         f:"Fishing nets, snagged and re-snagged for years, grown into a wall of rope and shell."},
+      {n:"The Drowned Market",   f:"Stalls still standing on the seabed, their wares long since taken by the water."}
+    ],
+    adj:["cold and moving","lit by something with no visible source","thick with drifting silt",
+         "pressing in from every side","strangely warm for the depth","full of small, watching shapes",
+         "hushed the way only deep water is hushed","tasting faintly of salt and iron",
+         "lit green by things that should not glow","heavy on the ears"],
+    detail:[
+      "Bubbles rise from a crack in the coral in a slow, even rhythm, like breathing.",
+      "Something has been stacking shells here, in careful, deliberate towers.",
+      "A current runs through this room that has no business running against the tide.",
+      "Fish scatter from a shape in the dark that does not scatter with them.",
+      "Old rigging rope, still knotted, drifts loose from the ceiling.",
+      "The coral here has grown in the shape of something that was once standing.",
+      "A trail of bubbles leads deeper and does not come back.",
+      "Barnacles crust a shape on the floor that is the wrong size for a rock.",
+      "The water tastes different here, and not in a way that is easy to place.",
+      "Something large passed through recently — the silt is still settling.",
+      "A bell, green with age, hangs where no wall should hold it.",
+      "Light comes from somewhere below, pulsing slow, like a heartbeat."
+    ],
+    sound:["a bell, somewhere below, tolling once and stopping","bubbles breaking the surface far above",
+           "a current dragging something heavy across stone","nothing at all — deep water swallows sound",
+           "a low groan of settling coral","something large, moving, not far off",
+           "your own heartbeat, loud in your ears the way it gets underwater",
+           "a school of fish turning all at once, in perfect silence"]
   }
 };
 
@@ -948,6 +1011,27 @@ function rollMob(depth, dun){
   if(depth<=3) return R.pick(t.early);
   if(depth<=6) return R.pick(t.mid);
   return R.pick(t.late);
+}
+// Random teleportation trap — a rare hazard on the "move deeper" action only
+// (never on retreat, and never while carrying the prize out). A Tidebound
+// party member (Triton ancestry) halves the trigger chance and keeps every
+// relocation inside the current dungeon — "never swept far from home" is a
+// real mechanic, not flavor text. Everything is rolled here, on the host,
+// and the finished event (destination room, and the new map if the party
+// changed dungeons) rides along so apply() only ever assigns fixed data —
+// the same discipline every other Rules.* roll already follows.
+function rollTeleportTrap(){
+  const tide=S.party.some(p=>hasAnc(p,"Tidebound"));
+  if(R.int(tide?40:20)!==0) return null;
+  if(!tide && R.d(10)<=3){
+    const others=Object.keys(DUNGEONS).filter(k=>k!==S.dun);
+    const dun=R.pick(others);
+    const map=makeMap(dun);
+    return {t:"teleport", dun, map, to:R.int(map.length-1)};
+  }
+  const choices=S.map.map((r,i)=>i).filter(i=>i!==S.at && i!==S.map.length-1);
+  if(!choices.length) return null;
+  return {t:"teleport", to:R.pick(choices)};
 }
 function spawn(key){
   const m={...MONSTERS[key]};
@@ -1283,6 +1367,14 @@ function apply(events){
       case "loot": PC(e.vs).inv.push(e.what); break;
       case "itemused": { const p=PC(e.src); const i=p.inv.indexOf(e.item); if(i>=0) p.inv.splice(i,1); break; }
       case "move": S.at=e.to; break;
+      case "teleport":
+        if(e.dun){
+          S.dun=e.dun; S.map=e.map;
+          S.journal.push(`The current took you somewhere else entirely — ${DUNGEONS[S.dun].short} now, `+
+                          `and ${DUNGEONS[S.dun].goal} to find.`);
+        }
+        S.at=e.to;
+        break;
       case "searched": S.map[S.at].searched=true; break;
       case "xp": {
         const share=Math.max(1, Math.round(e.amt/S.party.length));
@@ -1389,6 +1481,9 @@ const Narrator = {
       case "nofled": return `<span class="hurt">${N.nm(e.src)} turns to run and it is already moving</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
       case "xp": return `<span class="sys">+${e.share||e.amt} experience each.${e.levels?" <b>"+e.levels.join(". ")+".</b>":""}</span>`;
       case "crown": return `<span class="hit">${DUNGEONS[S.dun].prize} is lighter than it looks, and colder than the ${PLACE()}.</span>`;
+      case "teleport": return e.dun
+        ? `<span class="hurt">The floor is not the floor. Something takes hold of the whole party at once and does not let go until it is done with you.</span>`
+        : `<span class="hurt">The ${PLACE()} tilts, or you do, and when it settles you are somewhere you have not been before.</span>`;
       case "stand": return `<span class="hurt">${N.nm(e.vs)} goes down —</span> and then does not. <span class="hit">Something refuses</span> — ${RL(`CON ${e.roll.tot} vs DC ${e.roll.dc}`)} — <b>${PC(e.vs).hp}</b> hit points, and no more reprieves.`;
       case "insight":
         return `<span class="hit">${S.fight
@@ -2607,7 +2702,10 @@ async perform(a, action, arg, target){
         else ev=[{t:"move", to:S.at-1}];
       } else if(S.at>=S.map.length-1){
         out(`<span class="sys">You are not leaving without ${DUNGEONS[S.dun].goal}.</span>`);
-      } else ev=[{t:"move", to:S.at+1}];
+      } else {
+        const trap=rollTeleportTrap();
+        ev=[trap || {t:"move", to:S.at+1}];
+      }
       break;
 
     case "search":
@@ -2785,6 +2883,8 @@ async resolve(a, ev, spent){
   }
 
   if(ev.some(e=>e.t==="move")){ G.describeRoom(false); sync(); G.finish(); return; }
+  const tp=ev.find(e=>e.t==="teleport");
+  if(tp){ G.describeRoom(!!tp.dun); sync(); G.finish(); return; }
 
   // turn order + the monster's swing
   if(S.fight && S.fight.hp>0 && !S.flags.dead){
