@@ -118,7 +118,12 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
 /* ---- enemy status (regular fights only — a boss keeps its mystery,
    same reasoning as the "how much can it take" check staying vague) ---- */
 #enemystat{display:none; align-items:center; gap:10px; margin-bottom:9px}
-#enemystat.on{display:flex}
+#enemystat.on{display:flex; flex-wrap:wrap}
+.fxrow{display:flex; flex-wrap:wrap; gap:4px}
+#myfx:not(:empty){margin-top:6px}
+.fx{display:inline-block; font-size:11px; line-height:1.5; padding:0 7px; border-radius:10px; border:1px solid currentColor; white-space:nowrap; font-style:normal}
+.fx.bad{color:var(--red)} .fx.good{color:var(--green)}
+#turn .fx{margin-left:6px}
 #enemystat b{font-size:13px; color:var(--ink); font-weight:600; white-space:nowrap}
 #enemystat .bar{flex:1; margin:0; height:8px}
 
@@ -337,6 +342,7 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
     <div class="sub" id="pcclass">unproven</div>
     <div class="stat"><b>Hit Points</b><span id="hp">—</span></div>
     <div class="bar"><i id="hpbar" style="width:100%"></i></div>
+    <div id="myfx" class="fxrow"></div>
     <div class="stat"><b>Armor Class</b><span id="ac">—</span></div>
     <div class="stat"><b>Level</b><span id="lvl">—</span></div>
     <div class="stat"><b>Experience</b><span id="xp">—</span></div>
@@ -351,7 +357,7 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
     <div id="mobparty"></div>
     <div id="log"></div>
     <div id="ctl">
-      <div id="enemystat"><b id="enemyname"></b><div class="bar"><i id="enemyhpbar" style="width:100%"></i></div></div>
+      <div id="enemystat"><b id="enemyname"></b><div class="bar"><i id="enemyhpbar" style="width:100%"></i></div><span id="enemyfx" class="fxrow"></span></div>
       <div id="turn"></div>
       <div id="choices"></div>
       <div id="inrow">
@@ -751,6 +757,54 @@ const MONSTERS = {
              fl:"crowned in living coral, and the reef listens when she moves", boss:true}
 };
 
+/* ------------------------------------------------------ status effects --- */
+/* Every status is a real rule, enforced where the thing it changes is
+   decided (Rules.attack, Rules.monsterTurn, perform) — never flavour text.
+   A status lives on a character or monster as fx:{id: turnsLeft} and only
+   exists inside a fight; everything clears when the fight ends.
+
+   Timing, once per round when the round rolls over (resolve()):
+     1. party ticks — poison/bleed damage, then every duration drops by 1
+     2. the monster acts — and may inflict something new, at full duration
+   so a status landed on you always covers your next N turns. Stunned and
+   Staggered are "lose your next turn": they last until that turn is spent. */
+const STATUS = {
+  poisoned:  {name:"Poisoned",   icon:"☠️", bad:true,  turns:3, desc:"Takes 1d4 damage each round. A potion cures it."},
+  bleeding:  {name:"Bleeding",   icon:"🩸", bad:true,  turns:2, desc:"Takes 1d3 damage each round. Any healing stops it."},
+  stunned:   {name:"Stunned",    icon:"💫", bad:true,  turns:1, desc:"Loses their next turn."},
+  frightened:{name:"Frightened", icon:"😨", bad:true,  turns:2, desc:"Weapon attacks roll with disadvantage."},
+  weakened:  {name:"Weakened",   icon:"🥀", bad:true,  turns:2, desc:"Weapon damage is 2 lower."},
+  blessed:   {name:"Blessed",    icon:"✨", bad:false, turns:3, desc:"+2 to weapon attack rolls."},
+  staggered: {name:"Staggered",  icon:"🌀", bad:true,  turns:1, desc:"Loses its next turn."}
+};
+// What each monster can do to you on a hit: [status, % chance per hit].
+const MONSTER_FX = {
+  rat:["bleeding",25], hound:["bleeding",30], grubs:["poisoned",40], ghoul:["stunned",20],
+  spider:["poisoned",35], lantern:["frightened",30], whisper:["frightened",35], shade:["weakened",35],
+  wight:["weakened",30], sentinel:["stunned",15], knight:["stunned",15],
+  drowned:["poisoned",25], eel:["stunned",20], tidepriest:["frightened",30], brine:["poisoned",30],
+  crows:["bleeding",25], boar:["bleeding",30], wolf:["bleeding",30], briar:["bleeding",35],
+  hedge:["poisoned",35], stag:["frightened",30], troll:["weakened",25], warden:["stunned",15],
+  crab:["bleeding",30], shoal:["bleeding",35], sahuagin:["bleeding",25], angler:["frightened",30],
+  kelp:["stunned",25], shark:["bleeding",40], coralgolem:["stunned",15], captain:["frightened",30],
+  VETHKAR:["weakened",35], MAERWEN:["poisoned",35], SILVANE:["stunned",20], REEFQUEEN:["frightened",35]
+};
+const hasFx = (o, id) => !!(o && o.fx && o.fx[id]>0);
+// Small coloured chips for a character or monster's current statuses. The
+// monster's older one-off statuses (burning, off-balance) show here too.
+function fxChips(o){
+  if(!o) return "";
+  const chips=Object.entries(o.fx||{}).filter(([id,n])=>n>0 && STATUS[id]).map(([id,n])=>{
+    const s=STATUS[id];
+    return `<span class="fx ${s.bad?"bad":"good"}" title="${escAttr(s.desc)}">${s.icon} ${s.name}${id==="stunned"||id==="staggered"?"":" "+n}</span>`;
+  });
+  if(o.burning>0) chips.push(`<span class="fx bad" title="Takes 1d4 fire damage at the start of its turn.">🔥 Burning ${o.burning}</span>`);
+  if(o.rattled>0) chips.push(`<span class="fx good" title="Its next attacks roll with disadvantage.">😵 Off-balance ${o.rattled}</span>`);
+  if(o.rage>0)    chips.push(`<span class="fx good" title="+2 damage dealt, 2 less taken.">😤 Raging</span>`);
+  if(o.edge)      chips.push(`<span class="fx good" title="Next strike has advantage.">🎯 Advantage</span>`);
+  return chips.join("");
+}
+
 /* ------------------------------------------------------------ dungeons --- */
 const DUNGEONS = {
   barrow:{
@@ -1142,6 +1196,7 @@ function spawn(key){
   m.atks = n>=4 ? 3 : (n>=2 ? 2 : 1);             // and it swings more often
   m.rattled=0;
   m.burning=0;
+  m.key=key; m.fx={};
   m.the=(m.boss?"":"The ")+m.name;
   return m;
 }
@@ -1216,13 +1271,15 @@ const Rules = {
   },
   attack(a, target, bonusDice){
     const pc=PC(a), C=CLASSES[pc.cls], ab=C.wpn.abil==="dex"?"dex":"str";
-    const adv=!!pc.edge;
-    let r=adv ? Math.max(R.d(20),R.d(20)) : R.d(20);
+    // Frightened cancels advantage, and imposes disadvantage without it.
+    const scared=hasFx(pc,"frightened");
+    const adv=!!pc.edge && !scared, dis=scared && !pc.edge;
+    let r=adv ? Math.max(R.d(20),R.d(20)) : dis ? Math.min(R.d(20),R.d(20)) : R.d(20);
     let lucky=false;
     if(r===1 && hasAnc(pc,"Lucky") && pc.lucky){ r=R.d(20); lucky=true; }   // halfling
-    const b=mod(pc.ab[ab])+prof(pc), tot=r+b;
+    const b=mod(pc.ab[ab])+prof(pc)+(hasFx(pc,"blessed")?2:0), tot=r+b;
     const hit = r===20 || (r!==1 && tot>=target.ac);
-    if(!hit) return [{t:"miss", src:a, vs:"mob", r, b, tot, ac:target.ac, fumble:r===1, adv, lucky}];
+    if(!hit) return [{t:"miss", src:a, vs:"mob", r, b, tot, ac:target.ac, fumble:r===1, adv, dis, lucky}];
     let dmg=R.parse(C.wpn.dmg)+mod(pc.ab[ab]);
     if(r===20) dmg+=R.parse(C.wpn.dmg);
     let sneak=0;
@@ -1231,8 +1288,12 @@ const Rules = {
     if(bonusDice){ bonus=R.dice(bonusDice[0], bonusDice[1]); dmg+=bonus; }
     if(pc.rage>0) dmg+=2;                                                   // barbarian
     if(hasAnc(pc,"Draconic Might")) dmg+=1;                                 // dragonborn
-    return [{t:"hit", src:a, vs:"mob", r, b, tot, dmg:Math.max(1,dmg), crit:r===20,
-             sneak, bonus, adv, lucky, wpn:C.wpn.name}];
+    if(hasFx(pc,"weakened")) dmg-=2;
+    const out=[{t:"hit", src:a, vs:"mob", r, b, tot, dmg:Math.max(1,dmg), crit:r===20,
+             sneak, bonus, adv, dis, lucky, wpn:C.wpn.name}];
+    // A critical hit staggers whatever survives it: it loses its next turn.
+    if(r===20 && target.hp>Math.max(1,dmg)) out.push({t:"fxon", vs:"mob", fx:"staggered", turns:1});
+    return out;
   },
 
   // A thrown item (oil flask, say) rolls to hit exactly like a weapon
@@ -1337,6 +1398,14 @@ const Rules = {
       m.burning--;
       if(m.hp<=dmg) return ev;             // the fire finishes it — no last swing
     }
+    // Staggered by a critical hit: the whole turn goes, and the stagger with it.
+    if(hasFx(m,"staggered")){
+      ev.push({t:"note", text:`<span class="hit">${m.the} reels from the blow and does nothing this turn.</span>`, mAct:true});
+      ev.push({t:"fxoff", vs:"mob", fx:"staggered", mAct:true});
+      return ev;
+    }
+    const inflict=MONSTER_FX[m.key];
+    const dealt={};                                // damage so far per target, this turn
     for(let k=0;k<(m.atks||1);k++){
       const live=conscious();
       if(!live.length) break;
@@ -1352,6 +1421,10 @@ const Rules = {
         if(hasAnc(pc,"Stonecunning")) dmg=Math.max(1,dmg-1);     // dwarf
         if(pc.rage>0) dmg=Math.max(1,dmg-2);                     // barbarian
         ev.push({t:"hit", src:"mob", vs:t, who:m.name, r, b:m.atk, tot, dmg, crit:r===20, mAct:true, rattled});
+        dealt[t]=(dealt[t]||0)+dmg;
+        // A hit that leaves them standing may leave something behind.
+        if(inflict && pc.hp>dealt[t] && R.int(100)<inflict[1])
+          ev.push({t:"fxon", vs:t, fx:inflict[0], turns:STATUS[inflict[0]].turns, who:m.name, mAct:true});
       }
     }
     return ev;
@@ -1398,6 +1471,21 @@ const Rules = {
     const ev=[{t:"pray", src:a, roll:c, ok:true}];
     if(pc.hp<pc.hpMax) ev.push({t:"heal", vs:a, amt:R.d(6)+pc.lvl});
     else ev.push({t:"edge", vs:a});
+    // Answered mid-fight, it also lingers: Blessed for your next 3 turns
+    // (+1 because this turn's own decay is about to take one off).
+    if(S.fight) ev.push({t:"fxon", vs:a, fx:"blessed", turns:STATUS.blessed.turns+1});
+    return ev;
+  },
+  // Once per round, at the rollover, before the monster acts: damage from
+  // anything that hurts over time, then every party duration drops by one.
+  tickEffects(){
+    const ev=[];
+    S.party.forEach((p,i)=>{
+      if(p.down || p.isBoss || !p.fx) return;
+      if(hasFx(p,"poisoned")) ev.push({t:"fxdmg", vs:i, fx:"poisoned", dmg:R.d(4)});
+      if(hasFx(p,"bleeding")) ev.push({t:"fxdmg", vs:i, fx:"bleeding", dmg:R.d(3)});
+    });
+    if(S.party.some(p=>p.fx && Object.values(p.fx).some(n=>n>0))) ev.push({t:"fxdecay"});
     return ev;
   },
   hide(a, m){
@@ -1449,7 +1537,30 @@ function apply(events){
         if(hasAnc(PC(e.vs),"Infernal Resilience")) e.dmg=Math.max(1,e.dmg-2);
         hurt(e.vs, e.dmg);
         break;
-      case "heal": { const p=PC(e.vs); p.hp=Math.min(p.hpMax, p.hp+e.amt); break; }
+      case "heal": { const p=PC(e.vs); p.hp=Math.min(p.hpMax, p.hp+e.amt);
+                     if(p.fx && p.fx.bleeding){ delete p.fx.bleeding; e.stanched=true; } break; }
+      // ---- status effects ----
+      case "fxon": {
+        const o = e.vs==="mob" ? S.fight : PC(e.vs);
+        if(!o || (e.vs!=="mob" && o.down)) { e.skip=true; break; }
+        o.fx=o.fx||{};
+        e.fresh=!(o.fx[e.fx]>0);
+        o.fx[e.fx]=Math.max(o.fx[e.fx]||0, e.turns);
+        break;
+      }
+      case "fxoff": { const o = e.vs==="mob" ? S.fight : PC(e.vs); if(o && o.fx) delete o.fx[e.fx]; break; }
+      case "fxdmg": hurt(e.vs, e.dmg); break;
+      case "fxdecay":
+        e.expired=[];
+        S.party.forEach(p=>{
+          if(!p.fx) return;
+          for(const id of Object.keys(p.fx)){
+            if(id==="stunned") continue;          // lasts until the lost turn is spent
+            p.fx[id]--;
+            if(p.fx[id]<=0){ delete p.fx[id]; e.expired.push([p.name, id]); }
+          }
+        });
+        break;
       case "edge": PC(e.vs).edge=true; break;
       case "rage": PC(e.src).rage=1; break;
       case "rattle": if(S.fight) S.fight.rattled=(S.fight.rattled||0)+(e.n||1); break;
@@ -1462,9 +1573,11 @@ function apply(events){
       case "rename": PC(e.vs).name=e.name; break;
       case "avatar": PC(e.vs).av={...PC(e.vs).av, em:e.em, col:e.col}; break;
       case "usepower": PC(e.src).power.uses--; break;
-      case "potion": { const p=PC(e.src); p.potions--; p.hp=Math.min(p.hpMax,p.hp+e.amt); break; }
+      case "potion": { const p=PC(e.src); p.potions--; p.hp=Math.min(p.hpMax,p.hp+e.amt);
+                       if(p.fx){ e.cured=["poisoned","bleeding"].filter(id=>p.fx[id]>0);
+                                 e.cured.forEach(id=>delete p.fx[id]); } break; }
       case "findpotion": PC(e.vs).potions++; break;
-      case "revive": { const g=PC(e.src), t=PC(e.vs); g.potions--; t.down=false; t.hp=e.amt; break; }
+      case "revive": { const g=PC(e.src), t=PC(e.vs); g.potions--; t.down=false; t.hp=e.amt; t.fx={}; break; }
       case "stand": { const p=PC(e.vs); p.hp=Math.max(1,Math.floor(p.hpMax/4)); p.down=false; p.stand=true; break; }
       case "loot": PC(e.vs).inv.push(e.what); break;
       case "itemused": { const p=PC(e.src); const i=p.inv.indexOf(e.item); if(i>=0) p.inv.splice(i,1); break; }
@@ -1496,7 +1609,7 @@ function apply(events){
       }
       case "talkdown":
         S.party.forEach((p,i)=>{ p.xp+=Math.max(1,Math.round(e.xp/2/S.party.length)); levelUp(p,e,i); });
-        S.map[S.at].cleared=true; S.fight=null;
+        S.map[S.at].cleared=true; S.fight=null; clearFx();
         break;
       case "crown":
         S.flags.crown=true; S.flags.waking=true;
@@ -1508,7 +1621,7 @@ function apply(events){
         }
         break;
       case "won": S.flags.won=true; break;
-      case "fled": S.fight=null; break;
+      case "fled": S.fight=null; clearFx(); break;
     }
     // Kept for the run's recent history only. It used to grow without limit,
     // and it rides along in every autosave, every save file and every
@@ -1523,8 +1636,10 @@ function apply(events){
 function hurt(idx, dmg){
   const p=PC(idx);
   p.hp=Math.max(0,p.hp-dmg);
-  if(p.hp===0) p.down=true;
+  if(p.hp===0){ p.down=true; p.fx={}; }
 }
+// Statuses only live inside a fight.
+function clearFx(){ S.party.forEach(p=>{ p.fx={}; }); }
 
 function levelUp(pc, e, i){
   while(pc.lvl<6 && pc.xp>=XP_NEED[pc.lvl]){
@@ -1560,13 +1675,13 @@ const Narrator = {
           const pc=PC(e.vs);
           return `<span class="hurt">${e.who} ${e.crit?"catches":"connects with"} ${N.nmL(e.vs)}</span>${e.auto?"":` — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac}`)}`} — <b>${e.dmg}</b> damage${pc.hp===0?` — <span class="hurt">and ${pc.name} goes down.</span>`:"."}`;
         }
-        return `<span class="hit">${N.poss(e.src)} ${e.wpn} lands${e.crit?" — a clean, ugly hit":""}${e.adv?" (from the blind side)":""}${e.sneak?` (+${e.sneak} blind side)`:""}${e.bonus?` (+${e.bonus})`:""}${e.lucky?` <em>— second look</em>`:""}</span>${e.auto?"":` — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac||(S.fight&&S.fight.ac)||"—"}`)}`} — <b>${e.dmg}</b> damage.`;
+        return `<span class="hit">${N.poss(e.src)} ${e.wpn} lands${e.crit?" — a clean, ugly hit":""}${e.adv?" (from the blind side)":""}${e.dis?" (shaking)":""}${e.sneak?` (+${e.sneak} blind side)`:""}${e.bonus?` (+${e.bonus})`:""}${e.lucky?` <em>— second look</em>`:""}</span>${e.auto?"":` — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac||(S.fight&&S.fight.ac)||"—"}`)}`} — <b>${e.dmg}</b> damage.`;
       case "miss":
         if(e.src==="mob") return `<span class="miss">${e.who} comes at ${N.nmL(e.vs)}${e.rattled?", still off its stride,":""} and finds only armour</span> — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac}`)}.`;
-        return `<span class="miss">${N.nm(e.src)} swings wide${e.fumble?" and nearly goes over":""}${e.lucky?", even given a second look,":""}</span> — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac}`)}.`;
-      case "heal": return `<span class="hit">${N.nm(e.vs)} steadies. <b>+${e.amt}</b> hit points.</span>`;
+        return `<span class="miss">${N.nm(e.src)} swings wide${e.dis?", hands not steady,":""}${e.fumble?" and nearly goes over":""}${e.lucky?", even given a second look,":""}</span> — ${RL(`d20 ${e.r}+${e.b}=${e.tot} vs AC ${e.ac}`)}.`;
+      case "heal": return `<span class="hit">${N.nm(e.vs)} steadies. <b>+${e.amt}</b> hit points${e.stanched?", and the bleeding stops":""}.</span>`;
       case "scrape": return `<span class="hurt">It goes wrong on ${N.nmL(e.vs)}. <b>${e.dmg}</b> damage.</span>`;
-      case "potion": return `${N.nm(e.src)} works a stopper free and drinks. <span class="hit">+${e.amt} hit points.</span>`;
+      case "potion": return `${N.nm(e.src)} works a stopper free and drinks. <span class="hit">+${e.amt} hit points${e.cured&&e.cured.length?`, and no longer ${e.cured.join(" or ")}`:""}.</span>`;
       case "findpotion": return `<span class="hit">A potion, still sealed, still good.</span>`;
       case "revive": return `<span class="hit">${N.nm(e.src)} gets a potion into ${PC(e.vs).name} and hauls them up — <b>${e.amt}</b> hit points, and a great deal of swearing.</span>`;
       case "edge": return `<span class="hit">${N.nm(e.vs)} has the better of the position now — the next strike comes in clean.</span>`;
@@ -1579,6 +1694,25 @@ const Narrator = {
       case "usepower": return `<em>${N.poss(e.src)} ${e.name}.</em>`;
       case "nopower": return `<span class="sys">${N.nm(e.src)} reaches for ${e.name} and finds nothing left.</span>`;
       case "note": return e.text;
+      case "fxon": {
+        if(e.skip) return null;
+        const st=STATUS[e.fx];
+        if(e.vs==="mob") return `<span class="hit">${S.fight?S.fight.the:"It"} is ${st.name.toLowerCase()} — it will lose its next turn.</span>`;
+        const who=escHtml(PC(e.vs).name);
+        const turns = e.fx==="stunned" ? "" : ` for ${e.fx==="blessed"?e.turns-1:e.turns} turns`;
+        return st.bad
+          ? `<span class="hurt">${st.icon} ${who} is ${st.name.toLowerCase()}${e.fresh?"":" again"}${turns}</span> <span class="sys">— ${st.desc}</span>`
+          : `<span class="hit">${st.icon} ${who} is ${st.name.toLowerCase()}${turns}</span> <span class="sys">— ${st.desc}</span>`;
+      }
+      case "fxoff": return null;
+      case "fxdmg": {
+        const p=PC(e.vs);
+        return `<span class="hurt">${STATUS[e.fx].icon} ${e.fx==="poisoned"?"Poison works through":"Blood runs from"} ${escHtml(p.name)} — <b>${e.dmg}</b> damage${p.hp===0?`, and ${escHtml(p.name)} goes down.`:"."}</span>`;
+      }
+      case "fxdecay":
+        return e.expired && e.expired.length
+          ? `<span class="sys">${e.expired.map(([n,id])=>`${escHtml(n)} is no longer ${STATUS[id].name.toLowerCase()}`).join(" · ")}.</span>` : null;
+      case "stunlost": return `<span class="hurt">💫 ${escHtml(PC(e.src).name)} is stunned, and the turn goes by without them.</span>`;
       case "asi": return `<span class="hit">${escHtml(PC(e.vs).name)}'s ${e.ab.toUpperCase()} rises to <b>${e.to}</b>.</span>`;
       case "taunt": return `<span class="taunt">🎭 ${escHtml(PC(e.src).name)}: <b>${e.text}</b></span>`;
       case "searched":
@@ -2798,6 +2932,15 @@ async perform(a, action, arg, target){
   const r=S.map[S.at];
   let ev=[], spent=false;
 
+  // Stunned: whatever was attempted, this turn is lost — and spent, which
+  // is what clears it. Free actions (questions, sheet, ability points) and
+  // the traitor's secret moves are unaffected.
+  const STUN_FREE=["asi","traitorTurn","traitorSabotage","traitorAid","darkstrike"];
+  if(S.fight && hasFx(PC(a),"stunned") && !FREEBIES.includes(action) && !STUN_FREE.includes(action)){
+    ev=[{t:"stunlost", src:a}, {t:"fxoff", vs:a, fx:"stunned"}];
+    spent=true; action="__stunned";
+  }
+
   switch(action){
     case "attack":
       if(!S.fight){ out(`<span class="sys">There is nothing here to fight.</span>`); break; }
@@ -2998,6 +3141,7 @@ async endFightIfDead(r){
   const boss=S.fight.boss;
   S.fight=null; r.cleared=true; S.acted=[];
   S.party.forEach(p=>{ p.rage=0; });          // rage ends with the fight
+  clearFx();                                  // and so does every status
   // whoever was down gets dragged up once the fighting stops
   const up=S.party.filter(p=>p.down);
   if(up.length){ up.forEach(p=>{ p.down=false; p.hp=1; });
@@ -3042,7 +3186,11 @@ async resolve(a, ev, spent){
       S.active=pending[0];
     } else {
       S.acted=[]; S.active=live[0]??0; S.round++;
-      if(!alreadyActed){
+      // Status effects tick at the rollover, before the monster acts, so
+      // anything it inflicts now lasts for the victim's full next N turns.
+      const tev=Rules.tickEffects();
+      if(tev.length){ apply(tev); await Narrator.render(tev, r.n); }
+      if(!alreadyActed && !S.flags.dead){
         const mev=Rules.monsterTurn(S.fight);
         apply(mev); await Narrator.render(mev, r.n);
         await G.endFightIfDead(r);
@@ -3078,8 +3226,10 @@ async resolve(a, ev, spent){
                    if(S.fight) S.active=i; }
     }
   }
-  if(partyWiped()) S.flags.dead=true;
-  else if(!conscious().includes(S.active)) S.active=conscious()[0]??S.active;
+  // Recomputed, not just set: a successful Last Stand above has to be able
+  // to take back the "dead" that apply() flagged when the last hit landed.
+  S.flags.dead=partyWiped();
+  if(!S.flags.dead && !conscious().includes(S.active)) S.active=conscious()[0]??S.active;
 
   if(S.flags.dead){ G.death(); G.finish(); return; }
   if(S.flags.won){ G.victory(); G.finish(); return; }
@@ -3228,6 +3378,7 @@ choices(){
     eb.classList.add("on");
     document.getElementById("enemyname").textContent=S.fight.name;
     document.getElementById("enemyhpbar").style.width=Math.max(0,100*S.fight.hp/S.fight.hpMax)+"%";
+    document.getElementById("enemyfx").innerHTML=fxChips(S.fight);
   } else {
     eb.classList.remove("on");
   }
@@ -3241,6 +3392,7 @@ choices(){
                 : `Waiting on <b>${PC(S.active).name}</b> — round ${S.round}.`)
       : `Between fights — anyone may act.`;
   else tb.innerHTML="";
+  if(S.fight && fxChips(me)) tb.innerHTML+=fxChips(me);
 
   const inputOn = myTurn && !me.down;
   document.getElementById("txt").disabled=!inputOn;
@@ -3256,6 +3408,11 @@ choices(){
     return;
   }
   if(!myTurn) return;
+
+  if(S.fight && hasFx(me,"stunned")){
+    add(`<b>💫 Stunned</b> <span style="color:var(--dim)">— this turn is lost. Shake it off.</span>`, ()=>G.act("wait"), true);
+    return;
+  }
 
   if(S.fight){
     add(`<b>Attack</b> the ${S.fight.name.toLowerCase()}`, ()=>G.attempt("attack"), true);
@@ -3459,6 +3616,8 @@ sheet(){
     <p><span class="dim">${me.anc?ANCESTRIES[me.anc].trait+": "+ANCESTRIES[me.anc].tdesc:""}
        ${me.bg?"· "+BACKGROUNDS[me.bg].trait+": "+BACKGROUNDS[me.bg].tdesc:""}</span></p>
     <p><span class="dim">Skills: ${(me.skills||[]).join(", ")||"—"}</span></p>
+    ${Object.keys(me.fx||{}).length?`<p>${Object.entries(me.fx).filter(([id,n])=>n>0&&STATUS[id]).map(([id,n])=>
+      `${STATUS[id].icon} <b>${STATUS[id].name}</b>${id==="stunned"?"":` (${n} turn${n===1?"":"s"})`} <span class="dim">— ${STATUS[id].desc}</span>`).join("<br>")}</p>`:""}
     <p>${["str","dex","con","int","wis","cha"].map(k=>`<b>${k.toUpperCase()}</b> ${me.ab[k]} (${mod(me.ab[k])>=0?"+":""}${mod(me.ab[k])})`).join(" · ")}</p>
     <p><b>${me.power.name}</b> — ${CLASSES[me.cls].power.desc} <em>${me.power.uses} remaining.</em></p>
     <p>${me.inv.join(" · ")}${me.potions?` · ${me.potions} potions of healing`:""}</p>
@@ -3485,6 +3644,13 @@ help(){
     <p>Anything the rules don't model goes to the <b>oracle</b> — a d6 ladder from <em>No, and</em>
        to <em>Yes, and</em> plus an ability check matched to what you're attempting. It has real
        consequences in both directions.</p>
+
+    <h3 style="margin-top:22px">Status effects</h3>
+    <p>Some monsters leave something behind when they hit — each kind has its own. They last a set
+       number of your turns, tick once a round, show as coloured tags, and all clear when the fight ends.</p>
+    <p>${Object.values(STATUS).map(st=>`${st.icon} <b>${st.name}</b> — ${st.desc}`).join("<br>")}</p>
+    <p class="dim">A potion cures poison and bleeding; any healing stops bleeding. A critical hit
+       staggers what it hits. A prayer answered mid-fight leaves you Blessed.</p>
 
     <h3 style="margin-top:22px">Playing with friends</h3>
     <p>Press <b>Play with friends</b>. One person hosts and reads out the four-letter code; up to
@@ -3882,6 +4048,7 @@ function sync(){
       const cls=["pc", i===S.me?"me":"", (S.fight&&S.active===i)?"act":"", p.down?"down":""].join(" ");
       return `<div class="${cls}">
         <div class="nm">${avatarSVG(p,26)}<b>${escHtml(p.name)}${i===S.me?" (you)":""}</b><s>${p.down?"down":p.cls}</s></div>
+        ${fxChips(p)?`<div class="fxrow">${fxChips(p)}</div>`:""}
         <div class="hb"><i style="width:${Math.max(0,100*p.hp/p.hpMax)}%"></i></div>
       </div>`;
     }).join("");
@@ -3894,6 +4061,7 @@ function sync(){
     `level ${me.lvl} ${(me.anc||"").toLowerCase()} ${me.cls.toLowerCase()}${me.bg?" · "+me.bg.toLowerCase():""}`;
   document.getElementById("hp").textContent=`${me.hp} / ${me.hpMax}`;
   document.getElementById("hpbar").style.width=Math.max(0,100*me.hp/me.hpMax)+"%";
+  document.getElementById("myfx").innerHTML=fxChips(me);
   document.getElementById("ac").textContent=me.ac;
   document.getElementById("lvl").textContent=me.lvl;
   document.getElementById("xp").textContent=me.xp;
