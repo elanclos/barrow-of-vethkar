@@ -557,6 +557,13 @@ const T = {
   // in the event, and shown word-for-word to every player — never handed to
   // the AI narrator to reword, since the words are the whole point. {m} is
   // the monster's name.
+  // Locked-container loot: valuables are flavour, but the potions, flask and
+  // experience that come with them are real (see Rules.stash).
+  treasure:["a purse of old gold, the coins stamped with a king nobody remembers",
+            "a silver torc, heavy and cold","a jewelled dagger-hilt with no blade",
+            "a string of river pearls","an ivory comb carved with a hunting scene",
+            "a gold ring set with a cloudy green stone","a reliquary locket with a lock of hair inside",
+            "a bag of cut garnets"],
   cutting:[
     "\"I've seen scarier things in a pie crust, {m}.\"",
     "\"Four hundred years down here and that's the best you've managed? Embarrassing.\"",
@@ -576,7 +583,7 @@ const T = {
     "\"You have the menace of a wet sock and half the charm.\""
   ],
   found:["a handful of tarnished coins","a scrap of oilcloth","a broken arrowhead",
-         "a child's carved wooden bird","a rusted key that fits nothing here",
+         "a child's carved wooden bird",
          "a signet ring, the crest filed off","a bundle of dry herbs, still fragrant",
          "half a map of somewhere else"],
   names:["Aldric","Maera","Corin","Sefa","Roan","Ilva","Bren","Nessa","Tovin","Wren","Hald","Juno",
@@ -753,6 +760,7 @@ const MONSTERS = {
   shark:    {name:"Reef Shark",      hp:"4d8+4",  ac:14, atk:5, dmg:"1d8+2", xp:190, fl:"a shadow that moves faster than the water around it"},
   coralgolem:{name:"Coral Golem",    hp:"4d8+10", ac:16, atk:5, dmg:"1d8+3", xp:270, fl:"reef grown into the shape of something that hits back"},
   captain:  {name:"The Drowned Captain", hp:"4d8+8", ac:14, atk:5, dmg:"1d8+2", xp:260, fl:"epaulettes of barnacle, and a wheel he still thinks he's holding"},
+  mimic:    {name:"Mimic",           hp:"4d8+6",  ac:13, atk:5, dmg:"1d8+2", xp:220, fl:"the lid was a mouth, and the mouth was waiting"},
   REEFQUEEN:{name:"Nyxara the Coral Sovereign", hp:"5d8+18", ac:15, atk:6, dmg:"1d10+2", xp:770,
              fl:"crowned in living coral, and the reef listens when she moves", boss:true}
 };
@@ -787,7 +795,7 @@ const MONSTER_FX = {
   hedge:["poisoned",35], stag:["frightened",30], troll:["weakened",25], warden:["stunned",15],
   crab:["bleeding",30], shoal:["bleeding",35], sahuagin:["bleeding",25], angler:["frightened",30],
   kelp:["stunned",25], shark:["bleeding",40], coralgolem:["stunned",15], captain:["frightened",30],
-  VETHKAR:["weakened",35], MAERWEN:["poisoned",35], SILVANE:["stunned",20], REEFQUEEN:["frightened",35]
+  mimic:["stunned",30], VETHKAR:["weakened",35], MAERWEN:["poisoned",35], SILVANE:["stunned",20], REEFQUEEN:["frightened",35]
 };
 const hasFx = (o, id) => !!(o && o.fx && o.fx[id]>0);
 // Small coloured chips for a character or monster's current statuses. The
@@ -1152,12 +1160,20 @@ function makeMap(dun){
   // A dungeon may carry its own flavour pools; the stone-and-ash defaults in
   // T read badly in a wood, and would read badly again in whatever comes next.
   const adjs=R.shuffle(D.adj||T.adj), dets=R.shuffle(D.detail||T.detail);
-  return pool.concat([D.vault]).map((r,i)=>({
+  const map=pool.concat([D.vault]).map((r,i)=>({
     ...r, i, adj:adjs[i%adjs.length], det:dets[i%dets.length],
     searched:false, cleared:false,
     mob: i===9 ? D.boss : (i===0 ? null : rollMob(i, dun)),
     loot: i===9 ? null : (R.d(6)>3 ? R.pick(T.found) : null)
   }));
+  // Most delves hide one rusty key in an early room, and the thing it opens
+  // somewhere after it — so the key is always found before its lock.
+  if(R.int(100)<65){
+    const k=1+R.int(6), l=k+1+R.int(8-k);
+    map[k].loot=KEY_ITEM;
+    map[l].lock={kind:R.pick(["chest","door"]), opened:false};
+  }
+  return map;
 }
 function rollMob(depth, dun){
   const t=DUNGEONS[dun||(S&&S.dun)||"barrow"].tables;
@@ -1187,6 +1203,37 @@ function rollTeleportTrap(){
   if(!choices.length) return null;
   return {t:"teleport", to:R.pick(choices)};
 }
+/* ---- rusty keys and what they open ---- */
+const KEY_ITEM="Rusty key";
+const LOCK_TEXT={
+  chest:{name:"the chest", sees:"An iron-banded chest sits against the wall, its lock scabbed with rust."},
+  door: {name:"the door",  sees:"A low door is set into the wall, and its lock is scabbed with rust."}
+};
+const partyHasKey = ()=> S.party.some(p=>!p.isBoss && p.inv.includes(KEY_ITEM));
+// Room-description line for a lock still shut, or the key still lying here.
+function lockHint(r){
+  const bits=[];
+  if(r.lock && !r.lock.opened)
+    bits.push(`🗝 ${LOCK_TEXT[r.lock.kind].sees}${partyHasKey()?" The rusty key you're carrying might fit it.":""}`);
+  if(r.loot===KEY_ITEM && !r.searched)
+    bits.push("Something small and metal glints among the debris — worth a proper search.");
+  return bits.length ? `<span class="sys">${bits.join(" ")}</span>` : "";
+}
+// Carrying a key with nothing left to open (found late, or carried off to
+// another dungeon by a teleport) — put a lock in the next room the party is
+// heading into. Deterministic on purpose: this runs inside apply().
+function ensureLockAhead(){
+  if(!partyHasKey()) return;
+  const last=S.map.length-1;
+  const ahead=S.flags.crown
+    ? S.map.filter(r=>r.i<S.at)
+    : S.map.filter(r=>r.i>S.at);
+  if(ahead.some(r=>r.lock && !r.lock.opened)) return;
+  const idx = S.flags.crown ? Math.max(0, S.at-1) : Math.min(last, S.at+1);
+  if(idx===S.at) return;
+  S.map[idx].lock={kind: idx%2 ? "chest" : "door", opened:false};
+}
+
 function spawn(key){
   const m={...MONSTERS[key]};
   const n=S ? S.party.length : 1;
@@ -1456,6 +1503,24 @@ const Rules = {
     if(c.ok && R.d(6)===6) ev.push({t:"loot", vs:a, what:"Oil flask"});
     return ev;
   },
+  // The rusty key turns. The key is spent either way; a chest has a small
+  // chance of being something that only looks like a chest.
+  unlock(a, room){
+    const ev=[{t:"itemused", src:a, item:KEY_ITEM},
+              {t:"unlocked", src:a, kind:room.lock.kind}];
+    if(room.lock.kind==="chest" && R.int(8)===0){ ev.push({t:"mimic"}); return ev; }
+    return ev.concat(Rules.stash(a));
+  },
+  // What's inside: one valuable, one or two potions, maybe an oil flask,
+  // and experience that scales with how deep you are.
+  stash(a){
+    const ev=[{t:"loot", vs:a, what:R.pick(T.treasure)},
+              {t:"findpotion", vs:a}];
+    if(R.d(2)===2) ev.push({t:"findpotion", vs:a});
+    if(R.d(2)===2) ev.push({t:"loot", vs:a, what:"Oil flask"});
+    ev.push({t:"xp", amt:40+15*S.at});
+    return ev;
+  },
   lastStand(a){ return Rules.check(a,"con", hasAnc(PC(a),"Relentless")?6:10, true); },
   talk(a, m){
     const c=Rules.check(a,"cha", m?13:12, skilledIn(PC(a),"persuasion")||skilledIn(PC(a),"insight"), "talk");
@@ -1579,7 +1644,8 @@ function apply(events){
       case "findpotion": PC(e.vs).potions++; break;
       case "revive": { const g=PC(e.src), t=PC(e.vs); g.potions--; t.down=false; t.hp=e.amt; t.fx={}; break; }
       case "stand": { const p=PC(e.vs); p.hp=Math.max(1,Math.floor(p.hpMax/4)); p.down=false; p.stand=true; break; }
-      case "loot": PC(e.vs).inv.push(e.what); break;
+      case "loot": PC(e.vs).inv.push(e.what); if(e.what===KEY_ITEM) ensureLockAhead(); break;
+      case "unlocked": { const rm=S.map[S.at]; if(rm.lock){ rm.lock.opened=true; rm.lock.by=e.src; } break; }
       case "itemused": { const p=PC(e.src); const i=p.inv.indexOf(e.item); if(i>=0) p.inv.splice(i,1); break; }
       case "move": S.at=e.to; break;
       case "asi": {
@@ -1599,6 +1665,7 @@ function apply(events){
                           `and ${DUNGEONS[S.dun].goal} to find.`);
         }
         S.at=e.to;
+        ensureLockAhead();
         break;
       case "searched": S.map[S.at].searched=true; break;
       case "xp": {
@@ -1712,6 +1779,10 @@ const Narrator = {
       case "fxdecay":
         return e.expired && e.expired.length
           ? `<span class="sys">${e.expired.map(([n,id])=>`${escHtml(n)} is no longer ${STATUS[id].name.toLowerCase()}`).join(" · ")}.</span>` : null;
+      case "unlocked": return e.kind==="chest"
+        ? `🗝 ${escHtml(PC(e.src).name)} works the rusty key into the lock. It grinds, sticks, and turns — <span class="hit">the lid comes up.</span>`
+        : `🗝 ${escHtml(PC(e.src).name)} works the rusty key into the lock. It grinds, sticks, and turns — <span class="hit">behind the door, a cramped storeroom nobody has opened in years.</span>`;
+      case "mimic": return `<span class="hurt">The lid keeps opening. It has teeth. The chest was never a chest.</span>`;
       case "stunlost": return `<span class="hurt">💫 ${escHtml(PC(e.src).name)} is stunned, and the turn goes by without them.</span>`;
       case "asi": return `<span class="hit">${escHtml(PC(e.vs).name)}'s ${e.ab.toUpperCase()} rises to <b>${e.to}</b>.</span>`;
       case "taunt": return `<span class="taunt">🎭 ${escHtml(PC(e.src).name)}: <b>${e.text}</b></span>`;
@@ -1871,6 +1942,7 @@ const VERBS = {
   pray:   ["pray","meditate","beseech","worship","supplicate"],
   hide:   ["hide","sneak","conceal","creep","skulk","duck","crouch","shadow"],
   revive: ["revive","rouse","wake","save","rescue","stabilise","stabilize","drag"],
+  unlock: ["unlock","open","pry"],
   use:    ["use","apply","employ","wield","equip","activate","throw","toss","hurl","scatter"],
   inv:    ["inventory","items","bag","pack","gear","sheet","stats","character","equipment","carrying"],
   cmds:   ["help","commands","controls"]
@@ -1894,6 +1966,7 @@ function actionLabel(a){
             potion:"drink a potion", rest:"rest", flee:"flee", take:"take the crown",
             listen:"listen", inv:"check your gear", wait:"wait", cmds:"commands", talk:"speak to it",
             pray:"pray", hide:"hide", query:"a question", revive:"help an ally up", noSuch:"—",
+            unlock:"unlock it with the rusty key",
             power:(me?me.power.name:"your ability") })[a] || a;
 }
 
@@ -1997,6 +2070,10 @@ function parse(text){
           : ask(`No ${me.power.name.toLowerCase()} left.`, [fighting?["Attack instead","attack"]:["Look around","look"], ORACLE]);
       if(toks.includes("potion")||toks.includes("healing"))
         return me.potions>0 ? ok("potion") : ask("You have no potions left.", [ORACLE]);
+      if(toks.includes("key") && me.inv.includes(KEY_ITEM)){
+        if(room.lock && !room.lock.opened && !fighting) return ok("unlock");
+        return ask(fighting ? "Not with that thing watching you." : "Nothing here has a lock for it.", [["Look around","look"], ORACLE]);
+      }
       // dedicated combat items (see ITEM_EFFECTS) take priority over the
       // generic oracle fallback below — checked against actual inventory,
       // same "never invent capability" rule as everywhere else in here.
@@ -2009,6 +2086,14 @@ function parse(text){
       if(item) return {action:"freeform", raw, item};
       return {action:"noSuch", raw};
     }
+
+    case "unlock":
+      // "open the door" in a room with nothing locked stays an oracle question,
+      // exactly as it was before this verb existed.
+      if(!room.lock || room.lock.opened) return FREE;
+      if(fighting) return ask("Not with that thing watching you.", [["Attack it","attack"],["Flee","flee"], ORACLE]);
+      if(!me.inv.includes(KEY_ITEM)) return ask("It's locked, and the rusted lock won't give to fingers. A key might turn it.", [["Search the room","search"],["Move on","move"], ORACLE]);
+      return ok("unlock");
 
     case "check":
       return has(toks,"pack") ? ok("inv")
@@ -2803,6 +2888,7 @@ describeRoom(first){
          thin and moving, and what you are carrying is very cold.`);
   else
     out(`${first?(D.enter||`The steps end and ${D.short} begins.`)+" ":""}The ${PLACE()} is ${r.adj}. ${r.f} ${r.det}`);
+  if(lockHint(r)) out(lockHint(r));
 
   if(r.mob && !r.cleared){
     const m=spawn(r.mob);
@@ -2994,13 +3080,21 @@ async perform(a, action, arg, target){
       if(S.fight){ out(`<span class="hurt">You will not be resting.</span>`); break; }
       ev=Rules.rest(a); break;
 
+    case "unlock": {
+      const pc=PC(a);
+      if(S.fight){ out(`<span class="hurt">Not with that thing watching you.</span>`); break; }
+      if(!r.lock || r.lock.opened){ out(`<span class="sys">There's nothing locked here.</span>`); break; }
+      if(!pc.inv.includes(KEY_ITEM)){ out(`<span class="sys">It's locked, and the lock is rusted solid. A key might turn it.</span>`); break; }
+      ev=Rules.unlock(a, r); break;
+    }
+
     case "take":
       if(S.at===S.map.length-1 && !S.flags.crown && !S.fight) ev=[{t:"crown", src:a}];
       else out(`<span class="sys">Nothing here comes loose.</span>`);
       break;
 
     case "look":
-      out(`${r.f} ${r.det} ${S.fight
+      out(`${r.f} ${r.det} ${lockHint(r)} ${S.fight
         ? `<span class="hurt">${S.fight.the} has not moved. It is waiting for you to.</span>`
         : (S.flags.crown?`Behind you, the way you came. It is longer than you remember.`
                         :`Ahead, the passage continues down.`)}`);
@@ -3138,7 +3232,7 @@ async endFightIfDead(r){
   out(`<span class="hit">${S.fight.the} comes apart and does not get up.</span>`);
   const g=[{t:"xp", amt:S.fight.xp}];
   apply(g); await Narrator.render(g, r.n);
-  const boss=S.fight.boss;
+  const boss=S.fight.boss, wasMimic=S.fight.key==="mimic";
   S.fight=null; r.cleared=true; S.acted=[];
   S.party.forEach(p=>{ p.rage=0; });          // rage ends with the fight
   clearFx();                                  // and so does every status
@@ -3146,6 +3240,12 @@ async endFightIfDead(r){
   const up=S.party.filter(p=>p.down);
   if(up.length){ up.forEach(p=>{ p.down=false; p.hp=1; });
     out(`<span class="hit">${up.map(p=>p.name).join(" and ")} get${up.length>1?"":"s"} hauled upright — one hit point and a bad hour ahead.</span>`); }
+  // A mimic swallows what the real chest held — it's all still in there.
+  if(wasMimic){
+    const by=r.lock && typeof r.lock.by==="number" && PC(r.lock.by) && !PC(r.lock.by).isBoss ? r.lock.by : (conscious()[0]??0);
+    out(`<span class="hit">Inside what's left of it is everything the real chest must have held.</span>`);
+    const st=Rules.stash(by); apply(st); await Narrator.render(st, r.n);
+  }
   if(boss){
     out(`<span class="hit">The crown is unguarded now.</span>`);
     // The traitor is not dragged out of hiding by the boss dying any more.
@@ -3164,6 +3264,13 @@ async resolve(a, ev, spent){
   const r=S.map[S.at];
 
   await G.endFightIfDead(r);
+
+  if(ev.some(e=>e.t==="mimic") && !S.fight){
+    const m=spawn("mimic");
+    S.fight={...m}; S.round=1; S.acted=[]; S.active=conscious()[0]??0;
+    S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
+    out(`<span class="hurt">${m.the} — ${m.fl}.</span>`);
+  }
 
   if(ev.some(e=>e.t==="wandering"||e.t==="noise") && !S.fight){
     const m=spawn(rollMob(S.at)||"rat");
@@ -3447,6 +3554,8 @@ choices(){
                                        : (NAV.up ||`<b>Climb</b> toward the surface`), ()=>G.act("move"));
     else add(NAV.down||`<b>Go</b> deeper`, ()=>G.act("move"));
     if(!r.searched) add(`<b>Search</b> the ${PLACE()}`, ()=>G.attempt("search"));
+    if(r.lock && !r.lock.opened && me.inv.includes(KEY_ITEM))
+      add(`<b>🗝 Unlock</b> ${LOCK_TEXT[r.lock.kind].name} with the rusty key`, ()=>G.act("unlock"), true);
     add(`<b>Look</b> around`, ()=>G.act("look"));
     if(S.party.some(p=>p.hp<p.hpMax)) add(`<b>Rest</b> <span style="color:var(--dim)">(risky)</span>`, ()=>G.act("rest"));
     if(me.potions>0 && me.hp<me.hpMax) add(`<b>Drink</b> a potion <span style="color:var(--dim)">(${me.potions})</span>`, ()=>G.act("potion"));
@@ -3644,6 +3753,11 @@ help(){
     <p>Anything the rules don't model goes to the <b>oracle</b> — a d6 ladder from <em>No, and</em>
        to <em>Yes, and</em> plus an ability check matched to what you're attempting. It has real
        consequences in both directions.</p>
+
+    <h3 style="margin-top:22px">Rusty keys</h3>
+    <p>Most delves hide a 🗝 rusty key in an early room — if something glints, search. Somewhere
+       after it is a locked chest or door. Unlock it for treasure, potions and experience. Chests
+       are usually just chests.</p>
 
     <h3 style="margin-top:22px">Status effects</h3>
     <p>Some monsters leave something behind when they hit — each kind has its own. They last a set
