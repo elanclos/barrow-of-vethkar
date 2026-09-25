@@ -63,6 +63,10 @@ button{font-family:inherit}
 .you::before{content:"› "}
 .sys{color:var(--dim); font-size:13px; font-style:italic}
 .hit{color:var(--green)} .miss{color:var(--dim)} .hurt{color:var(--red)}
+.favlist{display:flex; flex-direction:column; gap:6px; margin-bottom:6px}
+.favrow{display:flex; align-items:center; gap:10px; border:1px solid var(--line, #3a342a); border-radius:6px; padding:6px 8px}
+.favrow .favtxt{flex:1; min-width:0; font-size:13px}
+.favrow .ch{margin:0; padding:6px 10px; width:auto}
 .taunt{display:block; color:var(--gold, #c9a227); font-style:italic; border-left:3px solid currentColor; padding-left:8px; margin:4px 0}
 .orc{color:var(--purple); font-size:14px}
 .who{color:var(--blue); font-weight:600}
@@ -981,6 +985,79 @@ function newPC(name, cls, anc, bg, av){
   };
 }
 
+/* ------------------------------------------- progression & favorites --- */
+const XP_NEED=[0,120,320,700,1200,1900];
+const ASI_PER_LEVEL=2;
+const ABILS=["str","dex","con","int","wis","cha"];
+
+// Max hit points as a pure function of class, background, level and *current*
+// CON. Level-up and a CON increase both call this, so a CON bump is retroactive
+// (as in D&D) and a loaded favorite's hp can be recomputed rather than trusted.
+function calcHpMax(pc){
+  const C=CLASSES[pc.cls], m=mod(pc.ab.con);
+  let hp=C.hd + m + C.hpb + (BACKGROUNDS[pc.bg]&&BACKGROUNDS[pc.bg].trait==="Hardened"?3:0);
+  for(let l=2;l<=pc.lvl;l++) hp+=Math.max(2, Math.floor(C.hd/2)+1+m);
+  return hp;
+}
+const calcAC = (pc)=> pc.cls==="Rogue" ? 13+mod(pc.ab.dex) : CLASSES[pc.cls].ac;
+
+// Carry saved progress onto a freshly built character. Used both for a solo
+// player loading a favorite and by the host for a guest joining with one —
+// so it never trusts the numbers: everything is clamped, and a stat line that
+// is more than the dice, ancestry and level-ups could ever have produced is
+// thrown out (the character still joins, just fresh). hp/AC are recomputed.
+function applyProgress(pc, prog){
+  if(!prog || typeof prog!=="object") return pc;
+  const lvl=Math.max(1, Math.min(6, prog.lvl|0));
+  const ab={};
+  for(const k of ABILS){
+    const v=prog.ab ? prog.ab[k]|0 : 0;
+    if(v<3 || v>20) return pc;
+    ab[k]=v;
+  }
+  const asi=Math.max(0, Math.min(ASI_PER_LEVEL*(lvl-1), prog.asi|0));
+  const total=ABILS.reduce((s,k)=>s+ab[k],0)+asi;
+  if(total > 6*18 + 2 + ASI_PER_LEVEL*(lvl-1)) return pc;
+  pc.lvl=lvl; pc.ab=ab; pc.asi=asi;
+  pc.xp=Math.max(XP_NEED[lvl-1], Math.min(lvl<6?XP_NEED[lvl]-1:99999, prog.xp|0));
+  pc.hpMax=calcHpMax(pc); pc.hp=pc.hpMax; pc.ac=calcAC(pc);
+  pc.power.uses=CLASSES[pc.cls].power.uses;
+  return pc;
+}
+
+// Favorite characters, kept in this browser only. A favorite is identity plus
+// progress (level, xp, ability scores, unspent points) — never inventory, hp
+// or potions; every run starts with the class kit and full health.
+const Favorites={
+  KEY:"barrow-favorites", MAX:12,
+  list(){ try{ const a=JSON.parse(localStorage.getItem(this.KEY)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } },
+  write(a){ try{ localStorage.setItem(this.KEY, JSON.stringify(a.slice(0,this.MAX))); return true; }catch(e){ return false; } },
+  snapshot(pc){
+    return {id:pc.favId||("f"+Date.now().toString(36)+R.int(1e6).toString(36)),
+      name:pc.name, cls:pc.cls, anc:pc.anc, bg:pc.bg, av:pc.av,
+      lvl:pc.lvl, xp:pc.xp, ab:{...pc.ab}, asi:pc.asi||0, saved:Date.now()};
+  },
+  save(pc){
+    const f=this.snapshot(pc);
+    const a=this.list().filter(x=>x.id!==f.id);
+    if(a.length>=this.MAX) return null;
+    a.unshift(f);
+    if(!this.write(a)) return null;
+    pc.favId=f.id;
+    return f;
+  },
+  remove(id){ this.write(this.list().filter(x=>x.id!==id)); },
+  get(id){ return this.list().find(x=>x.id===id)||null; },
+  build(f){
+    const pc=newPC(cleanName(f.name)||R.pick(T.names),
+      CLASSES[f.cls]?f.cls:"Fighter", ANCESTRIES[f.anc]?f.anc:"Human",
+      BACKGROUNDS[f.bg]?f.bg:"Soldier", f.av||null);
+    applyProgress(pc, f);
+    pc.favId=f.id;
+    return pc;
+  }
+};
+
 // Trait lookups, so the rules engine never has to know about strings twice.
 // What a room is called in the dungeon you are actually in.
 const PLACE = ()=> (S && DUNGEONS[S.dun] && DUNGEONS[S.dun].place) || "chamber";
@@ -1392,6 +1469,16 @@ function apply(events){
       case "loot": PC(e.vs).inv.push(e.what); break;
       case "itemused": { const p=PC(e.src); const i=p.inv.indexOf(e.item); if(i>=0) p.inv.splice(i,1); break; }
       case "move": S.at=e.to; break;
+      case "asi": {
+        const p=PC(e.vs);
+        p.ab[e.ab]=Math.min(20, p.ab[e.ab]+1);
+        p.asi=Math.max(0,(p.asi||0)-1);
+        const before=p.hpMax;
+        p.hpMax=calcHpMax(p); p.hp=Math.max(p.down?0:1, p.hp+(p.hpMax-before));
+        p.ac=calcAC(p);
+        e.to=p.ab[e.ab];
+        break;
+      }
       case "teleport":
         if(e.dun){
           S.dun=e.dun; S.map=e.map;
@@ -1440,14 +1527,14 @@ function hurt(idx, dmg){
 }
 
 function levelUp(pc, e, i){
-  const need=[0,120,320,700,1200,1900];
-  while(pc.lvl<6 && pc.xp>=need[pc.lvl]){
+  while(pc.lvl<6 && pc.xp>=XP_NEED[pc.lvl]){
     pc.lvl++;
-    const gain=Math.max(2, Math.floor(CLASSES[pc.cls].hd/2)+1+mod(pc.ab.con));
-    pc.hpMax+=gain; pc.hp+=gain;
+    const before=pc.hpMax;
+    pc.hpMax=calcHpMax(pc); pc.hp+=pc.hpMax-before;
     pc.power.uses=CLASSES[pc.cls].power.uses;
+    pc.asi=(pc.asi||0)+ASI_PER_LEVEL;          // ability points to spend
     if(i===S.me) e.leveled=pc.lvl;
-    e.levels=(e.levels||[]).concat(`${pc.name} is now level ${pc.lvl}`);
+    e.levels=(e.levels||[]).concat(`${pc.name} is now level ${pc.lvl} (+${ASI_PER_LEVEL} ability points)`);
   }
 }
 
@@ -1492,6 +1579,7 @@ const Narrator = {
       case "usepower": return `<em>${N.poss(e.src)} ${e.name}.</em>`;
       case "nopower": return `<span class="sys">${N.nm(e.src)} reaches for ${e.name} and finds nothing left.</span>`;
       case "note": return e.text;
+      case "asi": return `<span class="hit">${escHtml(PC(e.vs).name)}'s ${e.ab.toUpperCase()} rises to <b>${e.to}</b>.</span>`;
       case "taunt": return `<span class="taunt">🎭 ${escHtml(PC(e.src).name)}: <b>${e.text}</b></span>`;
       case "searched":
         return e.auto
@@ -1935,6 +2023,12 @@ const Net = {
         BACKGROUNDS[msg.bg]?msg.bg:"Soldier",
         (msg.av && typeof msg.av.col==="number") ? {em:Math.max(-1,Math.min(EMBLEMS.length-1,msg.av.em|0)),
           col:Math.max(0,Math.min(AVCOLORS.length-1,msg.av.col|0)), seed:hashStr(nm)} : null);
+      // Only a loaded favorite carries stats in; a fresh character is still
+      // rolled here on the host, exactly as before.
+      if(typeof msg.favId==="string" && msg.favId){
+        applyProgress(pc, msg.prog);
+        pc.favId=msg.favId.slice(0,40);
+      }
       pc.conn=connId; pc.pid=msg.pid||null;
       S.party.push(pc);
       Net.transport.to(connId,{t:"you", idx:S.party.length-1});
@@ -2419,7 +2513,15 @@ creator(){
 
   let body="";
   if(d.step===0){
-    body=`<p>Who is going down there? And into which hole in the ground.</p>
+    const favs=Favorites.list();
+    const favHtml = favs.length ? `<p><b>★ Your favorites</b> <span class="dim">— pick a dungeon below, then play one. Saved on this device.</span></p>
+      <div class="favlist">${favs.map(f=>`<div class="favrow">
+        ${avatarSVG({name:f.name, av:f.av}, 30)}
+        <div class="favtxt"><b>${escHtml(f.name)}</b><br><span class="dim">Level ${f.lvl|0} ${escHtml(f.anc)} ${escHtml(String(f.cls).toLowerCase())} · ${escHtml(String(f.bg).toLowerCase())}</span></div>
+        <button class="ch go" onclick="G.playFavorite('${escAttr(f.id)}')"><b>Play</b></button>
+        <button class="ch" title="Remove" onclick="G.removeFavorite('${escAttr(f.id)}')">✕</button>
+      </div>`).join("")}</div><p style="margin-top:14px">Or make someone new:</p>` : "";
+    body=`${favHtml}<p>Who is going down there? And into which hole in the ground.</p>
       <div class="namerow">
         <input id="cname" maxlength="16" value="${escAttr(d.name)}" placeholder="name"
           oninput="G.draftName(this.value)">
@@ -2685,7 +2787,9 @@ async perform(a, action, arg, target){
     return;
   }
   // In combat, turn order is enforced. Out of combat, anyone may act.
-  if(S.fight && !FREEBIES.includes(action) && S.active!==a){
+  // Spending ability points is off the turn cycle — it can be done any time
+  // and never costs an action (it still takes the busy lock, like any write).
+  if(S.fight && !FREEBIES.includes(action) && action!=="asi" && S.active!==a){
     if(a===S.me) out(`<span class="sys">Wait — it is ${PC(S.active).name}'s turn.</span>`);
     return;
   }
@@ -2804,6 +2908,15 @@ async perform(a, action, arg, target){
       break;
     }
 
+    // Spend one level-up ability point. The ability rides in on `target`;
+    // re-validated here like everything else a guest can send.
+    case "asi": {
+      const pc=PC(a), k=target;
+      if(!ABILS.includes(k) || (pc.asi||0)<=0 || pc.ab[k]>=20 || pc.isBoss) break;
+      ev=[{t:"asi", vs:a, ab:k}];
+      break;
+    }
+
     case "talk": ev=Rules.talk(a, S.fight); spent=true; break;
     case "pray": ev=Rules.pray(a); spent=true; break;
     case "hide": ev=Rules.hide(a, S.fight); spent=true; break;
@@ -2863,6 +2976,9 @@ async perform(a, action, arg, target){
     apply(ev);
     await Narrator.render(ev, r.n);
   }
+  // Spending ability points is outside the turn cycle entirely: skip
+  // resolve(), which would otherwise re-point whose turn it is.
+  if(action==="asi"){ sync(); G.choices(); G.finish(); return; }
   await G.resolve(a, ev, spent);
 
   } finally {
@@ -3130,6 +3246,11 @@ choices(){
   document.getElementById("txt").disabled=!inputOn;
   document.getElementById("go").disabled=!inputOn;
 
+  // Unspent level-up points — shown whether or not it's your turn, since
+  // spending them costs no action.
+  if((me.asi||0)>0 && !S.flags.dead && !me.isBoss)
+    add(`<b>⬆ Improve abilities</b> <span style="color:var(--gold)">(${me.asi} point${me.asi===1?"":"s"})</span>`, ()=>G.asiPicker());
+
   if(me.down){
     add(`<span style="color:var(--dim)">You are down — wait for a hand up</span>`, ()=>{});
     return;
@@ -3238,6 +3359,7 @@ death(){
   out(`${S.party.length>1?"They go down":"You go down"} onto the cold stones, and the cold stones are
        patient, and after a while ${S.party.length>1?"they are":"you are"} simply another thing that is here.
        <span class="sys">${S.party.map(p=>`${p.name}, level ${p.lvl}`).join(" · ")} — reached ${S.map[S.at].n}.</span>`);
+  G.favButton();
   if(Net.mode!=="guest"){
     const b=document.getElementById("choices");
     const btn=document.createElement("button"); btn.className="ch";
@@ -3261,6 +3383,7 @@ victory(){
     if(traitorPc) out(`<span class="sys">${traitorPc.name} does not come up with you. Nobody who was at that
       table will ever quite agree on what ${escHtml(S.traitor.secretName||"it")} looked like.</span>`);
   }
+  G.favButton();
   if(Net.mode!=="guest"){
     const b=document.getElementById("choices");
     const btn=document.createElement("button"); btn.className="ch";
@@ -3268,6 +3391,65 @@ victory(){
   }
   sync();
 },
+
+/* ---- level-up ability points ---- */
+asiPicker(){
+  const me=ME(); if(!me) return;
+  const pts=me.asi||0;
+  if(pts<=0){ closeModal(); return; }
+  const hint={str:"melee hits and damage", dex:"ranged/finesse hits, fleeing, hiding"+(me.cls==="Rogue"?", your AC":""),
+    con:"hit points (applies to every level)", int:"wits and the oracle", wis:"searching and prayer", cha:"talking your way out"};
+  const prime=CLASSES[me.cls].prime;
+  modal(`<h3>Improve abilities</h3>
+    <p>${escHtml(me.name)} has <b>${pts}</b> point${pts===1?"":"s"} to spend. Each adds +1 (max 20).
+      <span class="dim">Your class leans on <b>${prime.toUpperCase()}</b>.</span></p>
+    <div class="pick">${ABILS.map(k=>{
+      const v=me.ab[k], m=mod(v), nm=mod(v+1);
+      const up = v<20 ? (nm>m?` <span class="hit">→ modifier ${nm>=0?"+":""}${nm}</span>`:"") : "";
+      return `<button class="ch${k===prime?" sel":""}" ${v>=20?"disabled":""} onclick="G.spendAsi('${k}')">
+        <b>${k.toUpperCase()} ${v}</b> (${m>=0?"+":""}${m})${v>=20?" — maxed":up}<br>
+        <span class="dim">${hint[k]}</span></button>`;}).join("")}</div>
+    <div class="navrow"><button class="ch go" onclick="closeModal()"><b>Later</b></button></div>`);
+},
+async spendAsi(k){
+  if(Net.mode==="guest"){ G.act("asi", null, k); closeModal(); return; }
+  await G.act("asi", null, k);
+  if((ME().asi||0)>0) G.asiPicker(); else closeModal();
+},
+
+/* ---- favorite characters ---- */
+// End-of-run offer to keep this character (and the levels they earned).
+favButton(){
+  const me=ME(); if(!me || me.isBoss) return;
+  const b=document.getElementById("choices");
+  const btn=document.createElement("button"); btn.className="ch";
+  const upd=me.favId && Favorites.get(me.favId);
+  btn.innerHTML=`<b>★ ${upd?"Update":"Save"} ${escHtml(me.name)}</b> <span style="color:var(--dim)">to favorites (level ${me.lvl})</span>`;
+  btn.onclick=()=>{ G.saveFavorite(); btn.disabled=true; btn.innerHTML="<b>★ Saved</b>"; };
+  b.appendChild(btn);
+},
+saveFavorite(){
+  const me=ME(); if(!me) return;
+  const had=!!(me.favId && Favorites.get(me.favId));
+  const f=Favorites.save(me);
+  out(`<span class="sys">${f
+    ? `★ ${escHtml(me.name)} (level ${me.lvl}) ${had?"updated in":"saved to"} your favorites on this device.`
+    : `Couldn't save — favorites are full (${Favorites.MAX}) or this browser blocks storage. Remove one from the character creator first.`}</span>`, true);
+  if(document.getElementById("favsave")) G.sheet();
+},
+playFavorite(id){
+  const f=Favorites.get(id); if(!f) return;
+  const pc=Favorites.build(f);
+  S=newWorld(pc, G.draft&&G.draft.dun||"barrow");
+  closeModal();
+  document.getElementById("log").innerHTML="";
+  out(`<span class="sys">★ ${escHtml(pc.name)} returns — level ${pc.lvl} ${pc.anc} ${pc.cls.toLowerCase()}. `+
+      `${pc.hpMax} hit points, AC ${pc.ac}.${pc.asi?` ${pc.asi} ability point${pc.asi===1?"":"s"} still to spend.`:""}</span>`);
+  G.tryOllama(false);
+  G.describeRoom(true);
+  sync();
+},
+removeFavorite(id){ Favorites.remove(id); G.creator(); },
 
 /* ---- panels ---- */
 sheet(){
@@ -3280,7 +3462,12 @@ sheet(){
     <p>${["str","dex","con","int","wis","cha"].map(k=>`<b>${k.toUpperCase()}</b> ${me.ab[k]} (${mod(me.ab[k])>=0?"+":""}${mod(me.ab[k])})`).join(" · ")}</p>
     <p><b>${me.power.name}</b> — ${CLASSES[me.cls].power.desc} <em>${me.power.uses} remaining.</em></p>
     <p>${me.inv.join(" · ")}${me.potions?` · ${me.potions} potions of healing`:""}</p>
-    <div class="navrow"><button class="ch" onclick="G.identity()">Rename / re-badge</button>
+    <p><span class="dim">XP ${me.xp}${me.lvl<6?` / ${XP_NEED[me.lvl]} for level ${me.lvl+1}`:" — max level"}</span>
+      ${(me.asi||0)>0?` · <b style="color:var(--gold)">${me.asi} ability point${me.asi===1?"":"s"} to spend</b>`:""}</p>
+    <div class="navrow">
+    ${(me.asi||0)>0?`<button class="ch" onclick="G.asiPicker()">⬆ Improve abilities</button>`:""}
+    <button class="ch" id="favsave" onclick="G.saveFavorite()">★ ${me.favId&&Favorites.get(me.favId)?"Update favorite":"Save to favorites"}</button>
+    <button class="ch" onclick="G.identity()">Rename / re-badge</button>
     <button class="ch go" onclick="closeModal()"><b>Close</b></button></div>`);
 },
 
@@ -3470,7 +3657,10 @@ async join(){
         closeModal();
         const me=ME();
         c.send({t:"join", name:me.name, cls:me.cls, anc:me.anc, bg:me.bg,
-                av:me.av, pid:Net.pid()});
+                av:me.av, pid:Net.pid(),
+                // a loaded favorite brings its level with it — the host
+                // re-validates every number (applyProgress) before using it
+                prog:{lvl:me.lvl, xp:me.xp, ab:me.ab, asi:me.asi||0}, favId:me.favId||null});
       });
       c.on("data", (m)=>Net.guestReceive(m));
       c.on("close", ()=>{
