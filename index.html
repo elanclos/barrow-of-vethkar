@@ -63,6 +63,7 @@ button{font-family:inherit}
 .you::before{content:"› "}
 .sys{color:var(--dim); font-size:13px; font-style:italic}
 .hit{color:var(--green)} .miss{color:var(--dim)} .hurt{color:var(--red)}
+.taunt{display:block; color:var(--gold, #c9a227); font-style:italic; border-left:3px solid currentColor; padding-left:8px; margin:4px 0}
 .orc{color:var(--purple); font-size:14px}
 .who{color:var(--blue); font-weight:600}
 .roll{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; color:var(--dim);
@@ -541,6 +542,28 @@ const T = {
     "Someone's step falters, just once, on the stair behind you.",
     "You cannot say why, but you count heads without meaning to.",
     "The lantern-light catches on a face wrong, just for an instant."
+  ],
+  // What a bard actually says with Cutting Words. Picked on the host, carried
+  // in the event, and shown word-for-word to every player — never handed to
+  // the AI narrator to reword, since the words are the whole point. {m} is
+  // the monster's name.
+  cutting:[
+    "\"I've seen scarier things in a pie crust, {m}.\"",
+    "\"Four hundred years down here and that's the best you've managed? Embarrassing.\"",
+    "\"You swing like someone who learned from a very bad book, {m}.\"",
+    "\"Do you hear that? It's the sound of nobody writing a song about you.\"",
+    "\"Every bard in three kingdoms will remember this fight. None of them will remember you.\"",
+    "\"You're not frightening, {m}. You're just badly lit.\"",
+    "\"I've met tavern stools with more menace and better posture.\"",
+    "\"Somewhere, your mother is very disappointed, {m} — assuming you had one.\"",
+    "\"Is that your fighting stance, or are you just confused?\"",
+    "\"You smell like a drowned cellar and you fight like one too.\"",
+    "\"They'll name a ditch after you, {m}. A small one.\"",
+    "\"Try harder. No, really — I'd like a story out of this.\"",
+    "\"All that lurking in the dark, and you still missed your cue.\"",
+    "\"You call that a snarl? I've heard kettles with more conviction.\"",
+    "\"I'd insult your ancestors, {m}, but I think they'd agree with me.\"",
+    "\"You have the menace of a wet sock and half the charm.\""
   ],
   found:["a handful of tarnished coins","a scrap of oilcloth","a broken arrowhead",
          "a child's carved wooden bird","a rusted key that fits nothing here",
@@ -1216,7 +1239,9 @@ const Rules = {
       case "Divine Smite":  ev.push({t:"note", text:"The oath goes into the swing with you."});
                            return ev.concat(Rules.attack(a, target, [3,8]));
       case "Rage":          ev.push({t:"rage", src:a}); break;
-      case "Cutting Words": ev.push({t:"hit", src:a, vs:"mob", dmg:Math.max(1,R.dice(2,6)+primeMod(pc)), auto:true, wpn:"a few well-chosen words"});
+      case "Cutting Words": ev.push({t:"taunt", src:a, verbatim:true,
+                              text:R.pick(T.cutting).replace(/\{m\}/g, (target&&target.name||"thing").toLowerCase())});
+                            ev.push({t:"hit", src:a, vs:"mob", dmg:Math.max(1,R.dice(2,6)+primeMod(pc)), auto:true, wpn:"a few well-chosen words"});
                             ev.push({t:"rattle", src:a, n:2}); break;
     }
     return ev;
@@ -1467,6 +1492,7 @@ const Narrator = {
       case "usepower": return `<em>${N.poss(e.src)} ${e.name}.</em>`;
       case "nopower": return `<span class="sys">${N.nm(e.src)} reaches for ${e.name} and finds nothing left.</span>`;
       case "note": return e.text;
+      case "taunt": return `<span class="taunt">🎭 ${escHtml(PC(e.src).name)}: <b>${e.text}</b></span>`;
       case "searched":
         return e.auto
           ? `${N.nm(e.src)} goes over the ${PLACE()} with notes in hand — and the patience is rewarded.`
@@ -1517,7 +1543,11 @@ const Narrator = {
   },
 
   async render(events, context){
-    const lines=events.map(Narrator.line).filter(Boolean);
+    // Verbatim events (a bard's cutting words) are printed exactly as
+    // written, ahead of everything else, and never sent to the AI — a
+    // reworded insult is not the insult the player earned.
+    events.filter(e=>e.verbatim).map(Narrator.line).filter(Boolean).forEach(l=>out(l));
+    const lines=events.filter(e=>!e.verbatim).map(Narrator.line).filter(Boolean);
     if(!lines.length) return;
     const plain=lines.join(" ");
     if(!Narrator.ollama){ out(plain); return; }
