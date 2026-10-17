@@ -322,7 +322,7 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
   <button class="tb" id="localaibtn" onclick="G.tryOllama(true)">Connect local AI</button>
   <button class="tb" id="cloudaibtn" onclick="G.tryCloud(true)">Connect cloud AI</button>
   <button class="tb hot" id="dmbtn" onclick="G.toggleDM()" title="With Cloud AI connected, the AI also runs rooms and rules on actions the game has no rule for. Dice still decide everything.">🎭 AI DM: On</button>
-  <button class="tb" onclick="G.save()">Save</button>
+  <button class="tb" onclick="G.saveMenu()">Save</button>
   <button class="tb" onclick="document.getElementById('file').click()">Load</button>
   <button class="tb" onclick="G.help()">Help</button>
   <input type="file" id="file" hidden accept=".json" onchange="G.load(this)">
@@ -1246,6 +1246,16 @@ const Favorites={
     return f;
   },
   remove(id){ this.write(this.list().filter(x=>x.id!==id)); },
+  // A character that is already a favorite on this device keeps itself up to
+  // date: every level, point of XP and ability change is written back as it
+  // happens — on the host and on every guest, each for their own character.
+  autoUpdate(pc){
+    if(!pc || !pc.favId || pc.isBoss) return false;
+    const f=this.get(pc.favId); if(!f) return false;
+    const sig=(x)=>[x.name,x.lvl,x.xp,x.asi||0,...ABILS.map(k=>x.ab[k])].join("|");
+    if(sig(f)===sig(pc)) return false;
+    return !!this.save(pc);
+  },
   get(id){ return this.list().find(x=>x.id===id)||null; },
   build(f){
     const pc=newPC(cleanName(f.name)||R.pick(T.names),
@@ -4397,6 +4407,23 @@ async tryCloud(loud){
 },
 
 /* ---- persistence ---- */
+// Every player — host, guest or solo — can save their own character's stats.
+// Downloading the whole run stays with whoever actually runs the game.
+saveMenu(){
+  const me=ME();
+  if(!me){ modal(`<h3>Nothing to save yet</h3><button class="ch" onclick="closeModal()">Close</button>`); return; }
+  const fav=me.favId && Favorites.get(me.favId);
+  modal(`<h3>Save</h3>
+    <p><b>${escHtml(me.name)}</b> — level ${me.lvl} ${escHtml(me.anc)} ${escHtml(me.cls.toLowerCase())}, ${me.xp} XP.</p>
+    <p class="dim">${fav
+      ? "Already a favorite on this device, and kept up to date automatically as you play."
+      : "Saving makes this character a favorite on this device. From then on its level, XP and ability scores update automatically as you play, and you can start any later game as it from the character creator."}</p>
+    <div class="navrow" style="flex-wrap:wrap">
+      <button class="ch go" onclick="G.saveFavorite(); closeModal()"><b>★ ${fav?"Save now":"Save my character"}</b></button>
+      ${Net.mode!=="guest"?`<button class="ch" onclick="G.save(); closeModal()">Download this run</button>`:""}
+      <button class="ch" onclick="closeModal()">Close</button>
+    </div>`);
+},
 save(){
   const blob=new Blob([JSON.stringify(S)],{type:"application/json"});
   const a=document.createElement("a");
@@ -4530,6 +4557,11 @@ function sync(){
   document.getElementById("hp").textContent=`${me.hp} / ${me.hpMax}`;
   document.getElementById("hpbar").style.width=Math.max(0,100*me.hp/me.hpMax)+"%";
   document.getElementById("myfx").innerHTML=fxChips(me);
+  Favorites.autoUpdate(me);
+  // Not a favorite yet? A level-up is the moment worth keeping — say so once.
+  if(G._seenLvl && G._seenLvl.name===me.name && me.lvl>G._seenLvl.lvl && !(me.favId && Favorites.get(me.favId)))
+    out(`<span class="sys">★ ${escHtml(me.name)} reached level ${me.lvl}. Press <b>Save</b> to keep this character and its stats for future games.</span>`, true);
+  G._seenLvl={name:me.name, lvl:me.lvl};
   Battle.update();
   document.getElementById("ac").textContent=me.ac;
   document.getElementById("lvl").textContent=me.lvl;
