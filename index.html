@@ -57,6 +57,9 @@ button{font-family:inherit}
 /* ---- main ---- */
 #main{flex:1; display:flex; flex-direction:column; min-width:0; min-height:0}
 #log{flex:1; overflow-y:auto; padding:24px 28px; min-height:0}
+/* battle scene: a line drawing behind the story text while a monster
+   attacks. It's the log's own background, so it never scrolls with the text. */
+#log.battle{background-repeat:no-repeat; background-position:center bottom; background-size:contain}
 @media(max-width:820px){ #log{padding:18px} }
 #log p{margin:0 0 14px; max-width:66ch}
 .you{color:var(--gold); font-style:italic}
@@ -816,6 +819,137 @@ function fxChips(o){
   return chips.join("");
 }
 
+/* -------------------------------------------------------- battle scene --- */
+/* When a monster attacks, the story area behind the text shows a line
+   drawing of it going for whoever it targeted. Pure decoration, drawn from
+   state (S.fight.swing / swingVs, set in apply()) so host and guests see the
+   same picture. Each monster maps to one of a few drawn body types. */
+const MONSTER_ART = {
+  rat:"beast", hound:"beast", wolf:"beast", boar:"beast", stag:"antlers",
+  skeleton:"undead", ghoul:"undead", wight:"undead", drowned:"undead", brine:"undead", captain:"undead",
+  cultist:"robed", tidepriest:"robed", hedge:"robed",
+  knight:"knight", sentinel:"knight", coralgolem:"knight",
+  troll:"brute", warden:"brute", sahuagin:"spear",
+  spider:"spider", grubs:"swarm", crows:"birds", shoal:"fishswarm",
+  eel:"serpent", kelp:"fronds", briar:"fronds",
+  shade:"ghost", whisper:"ghost", lantern:"lantern",
+  shark:"fish", angler:"angler", crab:"crab", mimic:"chest"
+};
+const ART = {
+  beast:`<path d="M100 285 C120 240 200 215 280 232 C310 238 330 250 345 262"/><path d="M120 300 C170 312 240 305 290 290"/>
+    <path d="M345 262 L394 248 L380 266 L400 276 L352 293 L322 287"/><path d="M372 252 l3 8 l3 -8 M358 285 l3 -7 l3 7 M384 272 l2 -6 l3 6"/>
+    <circle cx="338" cy="258" r="3"/><path d="M325 245 l8 -22 l7 24"/>
+    <path d="M300 292 L332 334 L352 340 M282 297 L304 346 L318 348 M132 300 L96 340 L80 344 M152 305 L142 350 L128 352"/>
+    <path d="M100 285 C70 280 52 302 28 290"/>`,
+  antlers:`<path d="M332 244 C326 214 312 204 300 186 M322 220 L342 204 M341 242 C352 212 366 202 374 182 M358 213 L378 210"/>`,
+  figure:`<circle cx="300" cy="168" r="18"/><path d="M295 186 L270 270 M270 270 L238 350 L222 352 M270 270 L322 344 L340 346"/>
+    <path d="M288 204 L332 160 M284 212 L334 236"/>`,
+  sword:`<path d="M332 160 L388 96 M322 150 L344 172 M388 96 l6 -8"/>`,
+  ribs:`<path d="M282 204 l20 4 M279 218 l20 4 M276 232 l20 4 M273 246 l18 4"/><circle cx="293" cy="166" r="4"/><circle cx="307" cy="166" r="4"/><path d="M292 178 l16 0 M296 178 l0 4 M300 178 l0 4 M304 178 l0 4"/>`,
+  robe:`<circle cx="300" cy="168" r="18"/><path d="M280 170 C284 136 318 134 322 168"/><path d="M296 186 C280 230 262 300 246 352 L334 352 C322 300 310 240 304 186"/>
+    <path d="M290 212 L340 196 M340 196 L352 360"/><circle cx="340" cy="186" r="12"/><path d="M340 168 l0 -10 M356 186 l10 0 M352 174 l8 -8 M328 174 l-8 -8"/>`,
+  knight:`<rect x="282" y="148" width="36" height="38" rx="6"/><path d="M286 166 l28 0 M300 148 C300 128 322 124 330 132"/>
+    <path d="M250 214 C238 214 236 262 262 274 C282 262 280 214 268 214 Z"/>`,
+  spear:`<path d="M282 200 L432 176 M432 176 l-14 -8 l4 14 Z"/><path d="M286 156 l-12 -10 l2 18 M312 154 l12 -12 l-2 18"/>`,
+  brute:`<path d="M330 160 L360 92 C366 78 388 82 384 98 L344 170"/><path d="M262 200 C240 240 246 300 270 318"/>`,
+  crown:`<path d="M280 152 l6 -18 l9 12 l5 -16 l5 16 l9 -12 l6 18 Z"/><path d="M290 196 C250 230 232 300 214 352 M308 196 C330 240 352 300 372 352"/>`,
+  spider:`<ellipse cx="230" cy="275" rx="56" ry="34"/><circle cx="300" cy="266" r="22"/><circle cx="310" cy="260" r="3"/><circle cx="318" cy="268" r="3"/>
+    <path d="M284 252 Q320 190 368 220 M286 260 Q336 220 382 262 M282 280 Q340 300 372 340 M276 290 Q320 330 330 352"/>
+    <path d="M200 248 Q170 180 128 210 M196 258 Q140 220 100 262 M200 292 Q150 320 120 350 M212 300 Q190 340 196 356"/><path d="M318 282 l14 12 M312 286 l8 16"/>`,
+  serpent:`<path d="M40 330 C100 220 160 380 230 290 S320 230 360 252"/><path d="M60 344 C116 248 172 400 244 304 S326 248 360 270"/>
+    <path d="M360 252 L404 246 L384 262 L404 276 L360 270"/><circle cx="352" cy="256" r="3"/><path d="M386 250 l3 7 l3 -7 M384 272 l3 -6 l3 6"/>`,
+  fronds:`<path d="M80 360 C70 300 110 260 90 200 C80 160 120 140 150 160"/><path d="M140 360 C130 290 190 260 170 200 C160 160 220 150 250 180"/>
+    <path d="M200 360 C210 300 260 280 290 250 C320 220 360 230 380 210 C392 198 410 204 404 220"/><path d="M110 300 l20 -10 M170 280 l22 -6 M250 290 l18 -14 M300 246 l12 -18"/>`,
+  ghost:`<path d="M200 140 C260 100 332 150 322 222 L340 332 L320 318 L305 338 L290 320 L274 340 L260 320 L244 340 L230 318 L180 304 C168 232 168 172 200 140 Z"/>
+    <ellipse cx="248" cy="188" rx="9" ry="14"/><ellipse cx="286" cy="186" rx="9" ry="14"/><path d="M252 230 C260 240 276 240 284 228"/>
+    <path d="M316 226 C352 220 384 208 414 198 M414 198 l14 -10 M414 198 l18 0 M414 198 l14 10"/>`,
+  lantern:`<circle cx="372" cy="186" r="18"/><path d="M372 156 l0 -14 M402 186 l14 0 M394 164 l10 -10 M394 208 l10 10 M350 164 l-10 -10"/>`,
+  fish:`<path d="M60 260 C140 196 300 198 392 248 C300 302 140 304 60 260 Z"/><path d="M60 260 L18 218 L34 262 L18 304 Z"/><path d="M196 212 L232 160 L252 208 M210 300 L232 330 L246 298"/>
+    <path d="M362 244 L398 236 M362 262 L394 274"/><path d="M372 241 l2 7 l3 -8 M382 239 l2 7 l3 -8 M372 266 l2 -7 l3 8 M382 270 l2 -7 l3 8"/><circle cx="340" cy="236" r="4"/><path d="M300 232 l-6 22 M290 232 l-6 22"/>`,
+  angler:`<path d="M120 270 C120 190 260 170 330 230 C360 254 360 290 330 310 C260 360 120 340 120 270 Z"/><path d="M120 270 L72 236 L84 272 L72 310 Z"/>
+    <path d="M300 200 C312 150 356 132 384 156"/><circle cx="392" cy="166" r="12"/><path d="M392 146 l0 -8 M412 166 l8 0 M392 186 l0 8"/>
+    <path d="M330 250 L360 262 L330 292"/><path d="M334 256 l8 6 l-6 4 M338 272 l8 2 l-8 4 M334 284 l6 2 l-6 4"/><circle cx="292" cy="230" r="6"/>`,
+  crab:`<ellipse cx="220" cy="292" rx="72" ry="36"/><path d="M200 258 l-6 -24 M236 258 l6 -24"/><circle cx="194" cy="230" r="5"/><circle cx="242" cy="230" r="5"/>
+    <path d="M282 278 C320 240 348 226 370 232 M370 232 L404 206 L392 232 L410 244 Z"/><path d="M176 272 C150 236 140 210 152 190 M152 190 L132 168 M152 190 L172 172"/>
+    <path d="M160 312 L130 344 M178 322 L160 352 M262 316 L292 346 M246 322 L264 354"/>`,
+  chest:`<path d="M150 260 L330 260 L330 350 L150 350 Z"/><path d="M150 260 L170 170 L350 170 L330 260"/><path d="M150 290 L330 290 M236 290 l0 20"/>
+    <path d="M166 260 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18"/>
+    <path d="M176 180 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16"/><path d="M240 255 C270 230 320 240 360 228 C380 222 392 236 380 246"/>`,
+  swarm:(()=>{ let d=""; for(let i=0;i<26;i++){ const x=60+(i*53)%300, y=230+(i*37)%120; d+=`M${x} ${y} c6 -8 14 -8 18 0 `; } return `<path d="${d}"/>`; })(),
+  birds:(()=>{ let d=""; for(let i=0;i<14;i++){ const x=70+(i*67)%320, y=120+(i*41)%170; d+=`M${x} ${y} q10 -12 20 0 q10 -12 20 0 `; } return `<path d="${d}"/>`; })(),
+  fishswarm:(()=>{ let d=""; for(let i=0;i<16;i++){ const x=60+(i*59)%320, y=170+(i*43)%160; d+=`M${x} ${y} q12 -9 24 0 q-12 9 -24 0 l-8 -6 l0 12 z `; } return `<path d="${d}"/>`; })()
+};
+function monsterArt(f){
+  if(f.boss) return ART.figure+ART.sword+ART.crown;
+  switch(MONSTER_ART[f.key]||"figure"){
+    case "beast":   return ART.beast;
+    case "antlers": return ART.beast+ART.antlers;
+    case "undead":  return ART.figure+ART.sword+ART.ribs;
+    case "robed":   return ART.robe;
+    case "knight":  return ART.figure+ART.sword+ART.knight;
+    case "brute":   return ART.figure+ART.brute;
+    case "spear":   return ART.figure+ART.spear;
+    case "lantern": return ART.ghost+ART.lantern;
+    default:        return ART[MONSTER_ART[f.key]] || ART.figure+ART.sword;
+  }
+}
+// One adventurer, facing left toward the monster, at horizontal position x.
+function heroArt(x, p){
+  if(p.down) return `<path d="M${x-40} 346 L${x+30} 346 M${x-40} 346 l-10 -6"/><circle cx="${x+42}" cy="340" r="12"/>`;
+  return `<circle cx="${x}" cy="200" r="15"/><path d="M${x} 215 L${x+8} 284 M${x+8} 284 L${x-14} 350 M${x+8} 284 L${x+30} 350"/>
+    <path d="M${x+2} 232 L${x-26} 258 M${x+4} 236 L${x+32} 250 L${x+30} 214"/><path d="M${x-38} 238 C${x-48} 260 ${x-40} 290 ${x-22} 292 C${x-14} 276 ${x-16} 250 ${x-38} 238 Z"/>`;
+}
+function battleSVG(f){
+  const party=S.party.filter(p=>!p.isBoss), n=party.length;
+  const xs=party.map((p,k)=>760-(n-1-k)*78);
+  const hitBy={}; (f.swingVs||[]).forEach(([i,h])=>{ hitBy[i]=Math.max(hitBy[i]||0, h?2:1); });
+  const heroes=party.map((p,k)=>{
+    const idx=S.party.indexOf(p), h=hitBy[idx], x=xs[k];
+    const fx = h===2
+      ? `<g class="bs-impact"><path d="M${x-58} 238 l28 0 M${x-44} 224 l0 28 M${x-54} 228 l20 20 M${x-34} 228 l-20 20"/></g>
+         <g class="bs-claw"><path d="M${x-30} 196 l26 60 M${x-20} 192 l26 60 M${x-10} 188 l26 60"/></g>`
+      : h===1 ? `<path class="bs-whoosh" d="M${x-90} 170 C${x-40} 200 ${x-40} 280 ${x-90} 310"/>` : "";
+    return `<g class="bs-hero${h===2?" bs-hit":""}">${heroArt(x,p)}</g>${fx}`;
+  }).join("");
+  const scale=f.boss?1.15:1;
+  const still=window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Standalone (it becomes a background image), so colours are literal and
+  // the fade/lunge/recoil animations live inside the SVG itself.
+  const css=`svg{fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .all{opacity:.2${still?"":";animation:in 3.2s ease-out both"}}
+    .gr{stroke:#3a3026;stroke-width:2}
+    .mob{stroke:#c2564a;stroke-width:3${still?"":";animation:lunge .7s ease-out"}}
+    .bs-hero{stroke:#e8dcc4;stroke-width:2.5;transform-box:fill-box;transform-origin:50% 100%}
+    .bs-hit{${still?"":"animation:recoil .6s ease-out .25s both"}}
+    .bs-impact{stroke:#c9a227;stroke-width:3}
+    .bs-claw{stroke:#c2564a;stroke-width:3}
+    .bs-whoosh{stroke:#9a8f7c;stroke-width:2;stroke-dasharray:6 8}
+    .bs-impact,.bs-claw,.bs-whoosh{transform-box:fill-box;transform-origin:center${still?"":";animation:pop 1s ease-out .2s both"}}
+    @keyframes in{0%{opacity:0}14%{opacity:.62}100%{opacity:.2}}
+    @keyframes lunge{0%{transform:translateX(-60px)}45%{transform:translateX(30px)}100%{transform:translateX(0)}}
+    @keyframes recoil{0%{transform:rotate(0)}30%{transform:rotate(9deg) translateX(10px)}100%{transform:rotate(0)}}
+    @keyframes pop{0%{opacity:0;transform:scale(.4)}25%{opacity:1}100%{opacity:.4;transform:scale(1.2)}}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><!--${f.swingTok}--><style>${css}</style><g class="all">
+    <path class="gr" d="M10 360 L790 360"/>
+    <g class="mob"><g transform="translate(${f.boss?-40:0},${f.boss?-55:0}) scale(${scale})">${monsterArt(f)}</g></g>
+    ${heroes}</g></svg>`;
+}
+const Battle={
+  shown:null,
+  show(f){
+    const el=document.getElementById("log"); if(!el) return;
+    el.style.backgroundImage=`url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(battleSVG(f))}")`;
+    el.classList.add("battle");
+    Battle.shown=f.swingTok;
+  },
+  hide(){ const el=document.getElementById("log"); if(el){ el.style.backgroundImage=""; el.classList.remove("battle"); } Battle.shown=null; },
+  // Called from sync(): draw each new monster swing once; clear when no fight.
+  update(){
+    if(!S || !S.fight || S.flags.dead || S.flags.won){ if(Battle.shown!==null) Battle.hide(); return; }
+    if(S.fight.swingTok && S.fight.swingTok!==Battle.shown) Battle.show(S.fight);
+  }
+};
+
 /* ------------------------------------------------------------ dungeons --- */
 const DUNGEONS = {
   barrow:{
@@ -1454,6 +1588,7 @@ const Rules = {
       ev.push({t:"fxoff", vs:"mob", fx:"staggered", mAct:true});
       return ev;
     }
+    if(conscious().length) ev.push({t:"mturn", mAct:true});
     const inflict=MONSTER_FX[m.key];
     const dealt={};                                // damage so far per target, this turn
     for(let k=0;k<(m.atks||1);k++){
@@ -1630,14 +1765,21 @@ const Rules = {
 function apply(events){
   for(const e of events){
     switch(e.t){
+      case "mturn":
+        // swingTok is unique across the whole run, so a new fight's first
+        // swing never looks like one already drawn.
+        if(S.fight){ S.swingSeq=(S.swingSeq||0)+1; S.fight.swingTok=S.swingSeq; S.fight.swingVs=[]; }
+        break;
       case "hit":
+        if(e.src==="mob" && S.fight && S.fight.swingVs) S.fight.swingVs.push([e.vs,1]);
         if(e.vs==="mob"){
           if(typeof e.src==="number") PC(e.src).edge=false;
           if(S.fight){ S.fight.hp=Math.max(0,S.fight.hp-e.dmg); if(S.fight.hp===0) e.killed=true; }
         } else { hurt(e.vs, e.dmg); }
         if(e.lucky && typeof e.src==="number") PC(e.src).lucky=false;
         break;
-      case "miss": if(typeof e.src==="number"){ PC(e.src).edge=false; if(e.lucky) PC(e.src).lucky=false; } break;
+      case "miss": if(e.src==="mob" && S.fight && S.fight.swingVs) S.fight.swingVs.push([e.vs,0]);
+                   if(typeof e.src==="number"){ PC(e.src).edge=false; if(e.lucky) PC(e.src).lucky=false; } break;
       case "scrape":
         // Tiefling resilience applies here rather than at each of scrape's
         // three creation sites — one place, and the narrated number (read
@@ -3402,7 +3544,7 @@ async perform(a, action, arg, target){
       const targets=conscious();
       if(targets.length){
         const t=R.pick(targets);
-        ev=[{t:"hit", src:"mob", vs:t, who:S.fight.name, dmg:R.dice(2,6)+3, crit:false, auto:true}];
+        ev=[{t:"mturn"}, {t:"hit", src:"mob", vs:t, who:S.fight.name, dmg:R.dice(2,6)+3, crit:false, auto:true}];
       }
       spent=false; break;
     }
@@ -4388,6 +4530,7 @@ function sync(){
   document.getElementById("hp").textContent=`${me.hp} / ${me.hpMax}`;
   document.getElementById("hpbar").style.width=Math.max(0,100*me.hp/me.hpMax)+"%";
   document.getElementById("myfx").innerHTML=fxChips(me);
+  Battle.update();
   document.getElementById("ac").textContent=me.ac;
   document.getElementById("lvl").textContent=me.lvl;
   document.getElementById("xp").textContent=me.xp;
