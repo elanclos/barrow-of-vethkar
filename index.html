@@ -835,105 +835,190 @@ const MONSTER_ART = {
   shade:"ghost", whisper:"ghost", lantern:"lantern",
   shark:"fish", angler:"angler", crab:"crab", mimic:"chest"
 };
+// Silhouette style (after a woodcut / vector-silhouette reference): solid
+// filled shapes and thick limbs (.f / .s), with thin "cut" lines (.c) in the
+// background colour carving folds, ribs, eyes and teeth back out of them.
+// Monsters face right and lunge; heroes face left and brace.
+const SIL = {
+  // small generators
+  star(cx,cy,r1,r2,n){ let d=""; for(let i=0;i<n*2;i++){ const a=Math.PI*i/n - Math.PI/2, r=i%2?r2:r1*(0.75+0.25*((i*7)%3)/2);
+      d+=(i?"L":"M")+(cx+r*Math.cos(a)).toFixed(1)+" "+(cy+r*Math.sin(a)).toFixed(1); } return d+"Z"; },
+  // A burst of flame tongues streaming from (x,y) in direction dir (1 right, -1 left).
+  flame(x,y,len,dir,h){ let d=""; const k=dir; h=h||1;
+    for(let i=0;i<7;i++){ const off=(i-3)*9*h, L=len*(0.55+0.45*Math.cos((i-3)*0.45)), w=6+((i*5)%4);
+      d+=`M${x} ${y+off*0.3} C${x+k*L*0.35} ${y+off-w} ${x+k*L*0.7} ${y+off*1.25-w*1.6} ${x+k*L} ${y+off*1.35-w} `+
+         `C${x+k*L*0.72} ${y+off*1.2+w*0.3} ${x+k*L*0.4} ${y+off+w} ${x} ${y+off*0.3+4}Z `; }
+    return d; },
+  bird(x,y,s){ return `M${x} ${y} q${-12*s} ${-14*s} ${-26*s} ${-10*s} q${12*s} ${2*s} ${18*s} ${12*s} q${4*s} ${-18*s} ${24*s} ${-22*s} q${-10*s} ${10*s} ${-12*s} ${20*s} l${10*s} ${2*s} l${-12*s} ${4*s}Z`; },
+  fishy(x,y,s){ return `M${x} ${y} c${8*s} ${-9*s} ${22*s} ${-9*s} ${30*s} 0 c${-8*s} ${9*s} ${-22*s} ${9*s} ${-30*s} 0 l${-9*s} ${-7*s} l0 ${14*s}Z`; }
+};
+
 const ART = {
-  beast:`<path d="M100 285 C120 240 200 215 280 232 C310 238 330 250 345 262"/><path d="M120 300 C170 312 240 305 290 290"/>
-    <path d="M345 262 L394 248 L380 266 L400 276 L352 293 L322 287"/><path d="M372 252 l3 8 l3 -8 M358 285 l3 -7 l3 7 M384 272 l2 -6 l3 6"/>
-    <circle cx="338" cy="258" r="3"/><path d="M325 245 l8 -22 l7 24"/>
-    <path d="M300 292 L332 334 L352 340 M282 297 L304 346 L318 348 M132 300 L96 340 L80 344 M152 305 L142 350 L128 352"/>
-    <path d="M100 285 C70 280 52 302 28 290"/>`,
-  antlers:`<path d="M332 244 C326 214 312 204 300 186 M322 220 L342 204 M341 242 C352 212 366 202 374 182 M358 213 L378 210"/>`,
-  figure:`<circle cx="300" cy="168" r="18"/><path d="M295 186 L270 270 M270 270 L238 350 L222 352 M270 270 L322 344 L340 346"/>
-    <path d="M288 204 L332 160 M284 212 L334 236"/>`,
-  sword:`<path d="M332 160 L388 96 M322 150 L344 172 M388 96 l6 -8"/>`,
-  ribs:`<path d="M282 204 l20 4 M279 218 l20 4 M276 232 l20 4 M273 246 l18 4"/><circle cx="293" cy="166" r="4"/><circle cx="307" cy="166" r="4"/><path d="M292 178 l16 0 M296 178 l0 4 M300 178 l0 4 M304 178 l0 4"/>`,
-  robe:`<circle cx="300" cy="168" r="18"/><path d="M280 170 C284 136 318 134 322 168"/><path d="M296 186 C280 230 262 300 246 352 L334 352 C322 300 310 240 304 186"/>
-    <path d="M290 212 L340 196 M340 196 L352 360"/><circle cx="340" cy="186" r="12"/><path d="M340 168 l0 -10 M356 186 l10 0 M352 174 l8 -8 M328 174 l-8 -8"/>`,
-  knight:`<rect x="282" y="148" width="36" height="38" rx="6"/><path d="M286 166 l28 0 M300 148 C300 128 322 124 330 132"/>
-    <path d="M250 214 C238 214 236 262 262 274 C282 262 280 214 268 214 Z"/>`,
-  spear:`<path d="M282 200 L432 176 M432 176 l-14 -8 l4 14 Z"/><path d="M286 156 l-12 -10 l2 18 M312 154 l12 -12 l-2 18"/>`,
-  brute:`<path d="M330 160 L360 92 C366 78 388 82 384 98 L344 170"/><path d="M262 200 C240 240 246 300 270 318"/>`,
-  crown:`<path d="M280 152 l6 -18 l9 12 l5 -16 l5 16 l9 -12 l6 18 Z"/><path d="M290 196 C250 230 232 300 214 352 M308 196 C330 240 352 300 372 352"/>`,
-  spider:`<ellipse cx="230" cy="275" rx="56" ry="34"/><circle cx="300" cy="266" r="22"/><circle cx="310" cy="260" r="3"/><circle cx="318" cy="268" r="3"/>
-    <path d="M284 252 Q320 190 368 220 M286 260 Q336 220 382 262 M282 280 Q340 300 372 340 M276 290 Q320 330 330 352"/>
-    <path d="M200 248 Q170 180 128 210 M196 258 Q140 220 100 262 M200 292 Q150 320 120 350 M212 300 Q190 340 196 356"/><path d="M318 282 l14 12 M312 286 l8 16"/>`,
-  serpent:`<path d="M40 330 C100 220 160 380 230 290 S320 230 360 252"/><path d="M60 344 C116 248 172 400 244 304 S326 248 360 270"/>
-    <path d="M360 252 L404 246 L384 262 L404 276 L360 270"/><circle cx="352" cy="256" r="3"/><path d="M386 250 l3 7 l3 -7 M384 272 l3 -6 l3 6"/>`,
-  fronds:`<path d="M80 360 C70 300 110 260 90 200 C80 160 120 140 150 160"/><path d="M140 360 C130 290 190 260 170 200 C160 160 220 150 250 180"/>
-    <path d="M200 360 C210 300 260 280 290 250 C320 220 360 230 380 210 C392 198 410 204 404 220"/><path d="M110 300 l20 -10 M170 280 l22 -6 M250 290 l18 -14 M300 246 l12 -18"/>`,
-  ghost:`<path d="M200 140 C260 100 332 150 322 222 L340 332 L320 318 L305 338 L290 320 L274 340 L260 320 L244 340 L230 318 L180 304 C168 232 168 172 200 140 Z"/>
-    <ellipse cx="248" cy="188" rx="9" ry="14"/><ellipse cx="286" cy="186" rx="9" ry="14"/><path d="M252 230 C260 240 276 240 284 228"/>
-    <path d="M316 226 C352 220 384 208 414 198 M414 198 l14 -10 M414 198 l18 0 M414 198 l14 10"/>`,
-  lantern:`<circle cx="372" cy="186" r="18"/><path d="M372 156 l0 -14 M402 186 l14 0 M394 164 l10 -10 M394 208 l10 10 M350 164 l-10 -10"/>`,
-  fish:`<path d="M60 260 C140 196 300 198 392 248 C300 302 140 304 60 260 Z"/><path d="M60 260 L18 218 L34 262 L18 304 Z"/><path d="M196 212 L232 160 L252 208 M210 300 L232 330 L246 298"/>
-    <path d="M362 244 L398 236 M362 262 L394 274"/><path d="M372 241 l2 7 l3 -8 M382 239 l2 7 l3 -8 M372 266 l2 -7 l3 8 M382 270 l2 -7 l3 8"/><circle cx="340" cy="236" r="4"/><path d="M300 232 l-6 22 M290 232 l-6 22"/>`,
-  angler:`<path d="M120 270 C120 190 260 170 330 230 C360 254 360 290 330 310 C260 360 120 340 120 270 Z"/><path d="M120 270 L72 236 L84 272 L72 310 Z"/>
-    <path d="M300 200 C312 150 356 132 384 156"/><circle cx="392" cy="166" r="12"/><path d="M392 146 l0 -8 M412 166 l8 0 M392 186 l0 8"/>
-    <path d="M330 250 L360 262 L330 292"/><path d="M334 256 l8 6 l-6 4 M338 272 l8 2 l-8 4 M334 284 l6 2 l-6 4"/><circle cx="292" cy="230" r="6"/>`,
-  crab:`<ellipse cx="220" cy="292" rx="72" ry="36"/><path d="M200 258 l-6 -24 M236 258 l6 -24"/><circle cx="194" cy="230" r="5"/><circle cx="242" cy="230" r="5"/>
-    <path d="M282 278 C320 240 348 226 370 232 M370 232 L404 206 L392 232 L410 244 Z"/><path d="M176 272 C150 236 140 210 152 190 M152 190 L132 168 M152 190 L172 172"/>
-    <path d="M160 312 L130 344 M178 322 L160 352 M262 316 L292 346 M246 322 L264 354"/>`,
-  chest:`<path d="M150 260 L330 260 L330 350 L150 350 Z"/><path d="M150 260 L170 170 L350 170 L330 260"/><path d="M150 290 L330 290 M236 290 l0 20"/>
-    <path d="M166 260 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18 l10 -18 l10 18"/>
-    <path d="M176 180 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16 l8 16 l8 -16"/><path d="M240 255 C270 230 320 240 360 228 C380 222 392 236 380 246"/>`,
-  swarm:(()=>{ let d=""; for(let i=0;i<26;i++){ const x=60+(i*53)%300, y=230+(i*37)%120; d+=`M${x} ${y} c6 -8 14 -8 18 0 `; } return `<path d="${d}"/>`; })(),
-  birds:(()=>{ let d=""; for(let i=0;i<14;i++){ const x=70+(i*67)%320, y=120+(i*41)%170; d+=`M${x} ${y} q10 -12 20 0 q10 -12 20 0 `; } return `<path d="${d}"/>`; })(),
-  fishswarm:(()=>{ let d=""; for(let i=0;i<16;i++){ const x=60+(i*59)%320, y=170+(i*43)%160; d+=`M${x} ${y} q12 -9 24 0 q-12 9 -24 0 l-8 -6 l0 12 z `; } return `<path d="${d}"/>`; })()
+  beast:`<path class="f" d="M28 286 C56 268 82 262 108 262 C148 226 246 214 300 232 C316 222 330 214 340 220 L348 194 L358 222
+      C376 228 394 236 410 242 L388 256 L412 272 C386 286 352 292 330 292 L354 330 L370 344 L344 346 L316 300 L300 302 L314 344
+      L292 348 L276 304 C238 314 192 314 160 306 L124 340 L102 348 L112 330 L130 298 C112 300 100 296 92 290 C70 300 50 300 28 286Z"/>
+    <path class="c" d="M392 252 l4 6 l4 -7 M398 270 l4 -6 l4 6 M150 256 C190 240 236 236 270 246 M200 300 C220 290 250 288 272 294"/>
+    <circle class="c" cx="344" cy="232" r="3"/>`,
+  antlers:`<path class="s" style="stroke-width:7" d="M334 222 C326 200 312 186 300 166 M318 194 L336 176 M344 220 C354 196 366 186 372 164 M360 190 L382 186 M306 176 L292 168"/>`,
+
+  // generic monster humanoid, lunging right
+  body:`<circle class="f" cx="300" cy="166" r="20"/>
+    <path class="f" d="M284 186 L318 190 L302 270 L262 264Z"/>
+    <path class="s" style="stroke-width:17" d="M276 262 L240 344 M290 266 L330 340"/>
+    <path class="s" style="stroke-width:12" d="M296 204 L334 158 M292 214 L338 240"/>
+    <path class="f" d="M226 340 L258 340 L256 352 L218 352Z M322 336 L352 340 L350 352 L318 350Z"/>`,
+  sword:`<path class="f" d="M328 160 L394 82 L404 90 L340 168Z"/><path class="s" style="stroke-width:7" d="M320 150 L346 176"/>
+    <path class="c" d="M342 152 L392 92"/>`,
+  ribs:`<path class="c" d="M280 206 l24 4 M278 220 l24 4 M275 234 l23 4 M272 248 l22 4 M291 190 l-6 76"/>
+    <circle class="k" cx="293" cy="164" r="5"/><circle class="k" cx="309" cy="164" r="5"/><path class="c" d="M292 178 l18 0 M297 176 l0 6 M302 176 l0 6 M307 176 l0 6"/>`,
+  robe:`<path class="f" d="M290 150 C292 120 314 108 330 96 C322 120 326 140 322 164 C322 176 316 184 308 188 C318 230 336 290 352 352 L232 352
+      C246 296 270 236 286 188 C280 180 282 160 290 150Z"/>
+    <path class="s" style="stroke-width:12" d="M300 206 L352 196"/><path class="s" style="stroke-width:6" d="M354 204 L372 140 M346 226 L338 300"/>
+    <path class="c" d="M296 200 C282 250 266 300 254 346 M308 206 C314 260 322 300 330 346 M300 166 C306 172 314 172 318 166"/>
+    <path class="g" d="${SIL.flame(374,140,120,1,0.9)}"/>`,
+  knight:`<path class="f" d="M282 146 L318 146 L320 182 L280 182Z M300 146 C300 122 324 116 336 126 C322 126 312 134 308 146Z"/>
+    <path class="c" d="M284 164 L316 164 M300 152 l0 26"/>
+    <path class="f" d="M244 204 C232 206 228 256 258 280 C284 258 282 206 270 204Z"/><path class="c" d="M257 214 l0 54 M246 236 l22 0"/>`,
+  brute:`<path class="f" d="M326 162 L352 100 C356 76 394 74 392 102 C388 120 368 130 346 168Z"/><path class="c" d="M360 96 l6 8 M374 92 l2 10 M382 108 l-8 4"/>
+    <path class="f" d="M262 196 C232 220 230 290 266 318 L280 272Z"/>`,
+  spear:`<path class="s" style="stroke-width:6" d="M262 214 L440 176"/><path class="f" d="M436 168 L466 170 L438 186Z"/>
+    <path class="f" d="M284 152 L270 138 L280 170Z M314 150 L332 134 L322 168Z"/>`,
+  crownCape:`<path class="f" d="M280 150 l6 -22 l9 14 l5 -20 l5 20 l9 -14 l6 22Z"/>
+    <path class="f" d="M286 192 C240 210 196 250 150 340 C190 320 210 338 238 320 C246 280 262 236 290 214Z"/>
+    <path class="c" d="M268 214 C236 246 214 284 196 330 M278 226 C256 260 244 290 236 318"/>`,
+  spider:`<ellipse class="f" cx="226" cy="274" rx="62" ry="40"/><circle class="f" cx="302" cy="264" r="26"/>
+    <path class="s" style="stroke-width:7" d="M286 246 L320 196 L372 214 M290 256 L340 222 L392 252 M286 282 L336 300 L370 344 M276 292 L310 330 L322 352
+      M200 244 L176 186 L124 200 M194 254 L140 222 L96 256 M198 296 L150 316 L118 350 M212 306 L196 336 L204 354"/>
+    <circle class="k" cx="312" cy="256" r="4"/><circle class="k" cx="320" cy="268" r="4"/><circle class="k" cx="306" cy="270" r="3"/>
+    <path class="f" d="M320 282 l18 14 l-14 -2Z M312 288 l8 18 l-10 -10Z"/><path class="c" d="M190 262 C210 252 240 252 262 262 M196 286 C216 278 244 278 262 286"/>`,
+  serpent:`<path class="s" style="stroke-width:28" d="M40 334 C100 224 166 384 234 292 S320 236 352 252"/>
+    <path class="f" d="M340 236 L410 236 L384 254 L412 270 L344 274Z"/><circle class="k" cx="358" cy="246" r="4"/>
+    <path class="c" d="M392 240 l3 8 l3 -8 M388 268 l3 -8 l3 8 M80 300 C110 270 140 300 170 320 M260 270 C290 250 320 250 340 256"/>`,
+  fronds:`<path class="s" style="stroke-width:16" d="M82 358 C70 300 112 258 92 200 C82 164 118 142 150 160"/>
+    <path class="s" style="stroke-width:14" d="M142 358 C130 290 190 258 170 200 C160 160 222 150 252 182"/>
+    <path class="s" style="stroke-width:12" d="M202 358 C212 300 262 280 292 250 C322 220 362 230 384 208 C396 196 414 202 408 220"/>
+    <path class="f" d="M100 300 l26 -14 l-6 16Z M164 276 l28 -8 l-10 14Z M248 288 l20 -18 l0 18Z M300 244 l12 -22 l6 18Z M380 214 l22 -6 l-12 14Z"/>`,
+  ghost:`<path class="f" d="M198 138 C258 96 334 146 324 220 L344 334 L322 318 L306 340 L290 320 L274 342 L258 320 L242 342 L228 318 L176 306 C164 232 166 170 198 138Z"/>
+    <ellipse class="k" cx="248" cy="186" rx="10" ry="16"/><ellipse class="k" cx="288" cy="184" rx="10" ry="16"/><path class="c" d="M248 232 C262 246 278 244 290 228"/>
+    <path class="s" style="stroke-width:12" d="M316 228 C352 220 386 206 414 196"/><path class="f" d="M410 188 L440 176 L420 196 L446 196 L420 204 L440 216 L410 206Z"/>
+    <path class="c" d="M206 170 C196 220 196 270 204 300 M310 240 C316 270 322 300 330 326"/>`,
+  lantern:`<circle class="g" cx="374" cy="186" r="20"/><path class="g" d="${SIL.star(374,186,46,22,9)}" style="opacity:.55"/>`,
+  fish:`<path class="f" d="M62 260 C140 192 300 196 394 246 C300 304 140 306 62 260Z M62 260 L16 214 L36 262 L16 308Z M196 212 L234 152 L256 210Z M212 300 L236 336 L250 298Z"/>
+    <path class="k" d="M366 246 L400 236 L398 248Z M366 262 L398 274 L396 262Z"/><path class="c" d="M372 246 l4 8 l4 -9 M384 243 l4 8 l4 -9 M372 262 l4 -8 l4 9 M384 266 l4 -8 l4 9
+      M298 228 l-8 30 M286 228 l-8 30 M274 228 l-8 30 M120 258 C180 250 260 252 330 262"/><circle class="k" cx="340" cy="236" r="5"/>`,
+  angler:`<path class="f" d="M118 270 C118 186 262 166 334 228 C364 254 364 292 334 312 C262 362 118 342 118 270Z M118 270 L66 230 L80 272 L66 314Z"/>
+    <path class="s" style="stroke-width:5" d="M300 198 C312 146 358 128 386 154"/><circle class="g" cx="392" cy="164" r="14"/><path class="g" d="${SIL.star(392,164,34,16,8)}" style="opacity:.5"/>
+    <path class="k" d="M330 248 L366 262 L330 296Z"/><path class="f" d="M332 254 l12 8 l-10 4Z M334 270 l14 2 l-12 6Z M332 284 l10 4 l-10 4Z"/><circle class="k" cx="292" cy="228" r="7"/>`,
+  crab:`<ellipse class="f" cx="218" cy="290" rx="78" ry="40"/><path class="s" style="stroke-width:5" d="M198 256 l-8 -26 M238 256 l8 -26"/><circle class="f" cx="190" cy="226" r="7"/><circle class="f" cx="246" cy="226" r="7"/>
+    <path class="s" style="stroke-width:12" d="M282 276 C318 238 346 226 366 230 M162 268 C140 236 140 210 150 190"/>
+    <path class="f" d="M360 218 L414 196 L392 230 L418 248 L362 244Z M140 196 L118 160 L152 176 L168 160 L160 196Z"/>
+    <path class="s" style="stroke-width:7" d="M156 314 L124 346 M176 324 L158 354 M264 316 L296 346 M246 324 L266 354"/><path class="c" d="M168 290 C200 276 236 276 268 290"/>`,
+  chest:`<path class="f" d="M146 258 L334 258 L334 352 L146 352Z M146 258 L170 166 L356 166 L334 258Z"/>
+    <path class="k" d="M162 258 l12 -22 l12 22 l12 -22 l12 22 l12 -22 l12 22 l12 -22 l12 22 l12 -22 l12 22 l12 -22 l12 22 l12 -22 l12 22Z
+      M178 172 l10 20 l10 -20 l10 20 l10 -20 l10 20 l10 -20 l10 20 l10 -20 l10 20 l10 -20 l10 20 l10 -20 l10 20 l10 -20Z"/>
+    <path class="c" d="M146 290 L334 290 M240 290 l0 22 M160 320 L320 320"/><path class="g" d="M236 250 C270 226 324 236 366 222 C388 216 400 234 384 246 C350 248 300 256 252 262Z" style="opacity:.8"/>`,
+  swarm:(()=>{ let d=""; for(let i=0;i<30;i++){ const x=50+(i*53)%320, y=226+(i*37)%124; d+=`M${x} ${y} c6 -10 18 -10 22 0 c-4 6 -18 6 -22 0Z `; } return `<path class="f" d="${d}"/>`; })(),
+  birds:(()=>{ let d=""; for(let i=0;i<13;i++){ const x=60+(i*67)%320, y=120+(i*41)%170; d+=SIL.bird(x,y,1+((i*3)%4)/5)+" "; } return `<path class="f" d="${d}"/>`; })(),
+  fishswarm:(()=>{ let d=""; for(let i=0;i<16;i++){ const x=60+(i*59)%320, y=170+(i*43)%160; d+=SIL.fishy(x,y,1+((i*3)%4)/6)+" "; } return `<path class="f" d="${d}"/>`; })(),
+  speed:`<path class="m" d="M20 200 L120 200 M40 236 L150 236 M10 272 L100 272 M50 308 L140 308"/>`
 };
 function monsterArt(f){
-  if(f.boss) return ART.figure+ART.sword+ART.crown;
+  const h=ART.body;
+  if(f.boss) return ART.crownCape+h+ART.sword;
   switch(MONSTER_ART[f.key]||"figure"){
     case "beast":   return ART.beast;
     case "antlers": return ART.beast+ART.antlers;
-    case "undead":  return ART.figure+ART.sword+ART.ribs;
+    case "undead":  return h+ART.sword+ART.ribs;
     case "robed":   return ART.robe;
-    case "knight":  return ART.figure+ART.sword+ART.knight;
-    case "brute":   return ART.figure+ART.brute;
-    case "spear":   return ART.figure+ART.spear;
+    case "knight":  return h+ART.sword+ART.knight;
+    case "brute":   return h+ART.brute;
+    case "spear":   return h+ART.spear;
     case "lantern": return ART.ghost+ART.lantern;
-    default:        return ART[MONSTER_ART[f.key]] || ART.figure+ART.sword;
+    default:        return ART[MONSTER_ART[f.key]] || h+ART.sword;
   }
 }
-// One adventurer, facing left toward the monster, at horizontal position x.
+
+// Party members, facing left toward the monster, drawn by class so the
+// party reads at a glance: hats, hoods, shields, staffs, bows.
 function heroArt(x, p){
-  if(p.down) return `<path d="M${x-40} 346 L${x+30} 346 M${x-40} 346 l-10 -6"/><circle cx="${x+42}" cy="340" r="12"/>`;
-  return `<circle cx="${x}" cy="200" r="15"/><path d="M${x} 215 L${x+8} 284 M${x+8} 284 L${x-14} 350 M${x+8} 284 L${x+30} 350"/>
-    <path d="M${x+2} 232 L${x-26} 258 M${x+4} 236 L${x+32} 250 L${x+30} 214"/><path d="M${x-38} 238 C${x-48} 260 ${x-40} 290 ${x-22} 292 C${x-14} 276 ${x-16} 250 ${x-38} 238 Z"/>`;
+  if(p.down) return `<path class="h" d="M${x-58} 340 C${x-30} 330 ${x+10} 330 ${x+34} 338 L${x+34} 352 L${x-58} 352Z"/><circle class="h" cx="${x+46}" cy="340" r="12"/>`;
+  const t=(d)=>d.replace(/X([-\d.]+)/g,(m,v)=>String(x+Number(v)));   // X-offset helper
+  const legs=t(`<path class="hs" style="stroke-width:13" d="MX4 276 LX-22 344 MX10 276 LX30 344"/>
+    <path class="h" d="MX-36 340 LX-12 340 LX-12 352 LX-40 352Z MX22 340 LX44 342 LX44 352 LX20 352Z"/>`);
+  const head=t(`<circle class="h" cx="X0" cy="190" r="14"/>`);
+  const torso=t(`<path class="h" d="MX-14 204 LX16 204 LX20 280 LX-12 280Z"/>`);
+  const cloak=t(`<path class="h" d="MX12 206 C X44 222 X58 280 X74 348 LX46 338 LX34 350 LX20 280Z"/><path class="c" d="MX26 230 C X36 262 X44 300 X52 336"/>`).replace(/ X/g," ").replace(/C X/g,"C ");
+  let gear="";
+  switch(p.cls){
+    case "Wizard":
+      return t(`<path class="h" d="MX-26 194 LX30 190 LX12 182 C X16 160 X26 146 X40 136 C X20 140 X4 156 X-2 182Z"/>
+        <path class="h" d="MX-10 200 C X-34 260 X-52 320 X-46 352 LX52 352 C X58 320 X40 260 X16 200Z"/>
+        <path class="hs" style="stroke-width:11" d="MX-6 222 LX-46 232"/><path class="hs" style="stroke-width:5" d="MX-40 236 LX-112 224"/>
+        <path class="c" d="MX0 220 C X-14 270 X-24 310 X-28 346 MX14 222 C X20 270 X30 310 X36 346"/>
+        <path class="g" d="${SIL.flame(x-112,224,44,-1,0.45)}"/>`).replace(/C X/g,"C ").replace(/ X/g," ")+head;
+    case "Cleric":
+      return t(`<path class="h" d="MX-12 202 C X-30 260 X-40 320 X-36 352 LX40 352 C X42 320 X32 260 X14 202Z"/>
+        <path class="hs" style="stroke-width:10" d="MX-8 218 LX-34 188"/><path class="h" d="MX-44 168 LX-24 168 LX-26 196 LX-42 196Z"/>
+        <path class="c" d="MX0 222 LX0 260 MX-10 234 LX10 234"/>`).replace(/C X/g,"C ").replace(/ X/g," ")+head;
+    case "Rogue":
+      gear=t(`<path class="h" d="MX-16 188 C X-16 168 X16 166 X20 186 LX24 210 LX8 200Z"/><path class="hs" style="stroke-width:10" d="MX-8 216 LX-40 246"/>
+        <path class="h" d="MX-38 242 LX-70 254 LX-40 250Z"/>`); break;
+    case "Ranger":
+      gear=t(`<path class="h" d="MX-16 188 C X-16 168 X16 166 X20 186 LX24 210 LX8 200Z"/><path class="hs" style="stroke-width:10" d="MX-8 216 LX-44 222 MX4 220 LX-6 226"/>
+        <path class="hs" style="stroke-width:5" d="MX-40 170 C X-80 200 X-80 248 X-40 276"/><path class="m" d="MX-40 170 LX-40 276"/>`); break;
+    case "Barbarian":
+      gear=t(`<path class="hs" style="stroke-width:12" d="MX-8 214 LX-40 196"/><path class="hs" style="stroke-width:6" d="MX-40 196 LX-30 140"/>
+        <path class="h" d="MX-30 134 C X-64 128 X-70 160 X-48 172 LX-32 156Z"/>`); break;
+    case "Bard":
+      gear=t(`<path class="h" d="MX-18 182 LX20 180 LX14 170 LX-12 172Z"/><path class="hs" style="stroke-width:3" d="MX14 172 C X28 150 X40 148 X50 144"/>
+        <path class="hs" style="stroke-width:10" d="MX-8 216 LX-42 230"/><path class="hs" style="stroke-width:3" d="MX-42 230 LX-104 216"/>`); break;
+    default: // Fighter, Paladin
+      gear=t(`<path class="h" d="MX-16 192 C X-16 170 X16 168 X16 192Z"/>${p.cls==="Paladin"?`<path class="h" d="MX0 176 C X6 156 X30 154 X40 162 C X26 162 X14 168 X8 178Z"/>`:""}
+        <path class="hs" style="stroke-width:10" d="MX-6 216 LX-40 232"/><path class="h" d="MX-38 226 LX-96 202 LX-98 208 LX-40 238Z"/>
+        <path class="h" d="MX-30 220 C X-46 222 X-48 270 X-24 288 C X-4 270 X-8 222 X-30 220Z"/><path class="c" d="MX-26 230 LX-26 278 MX-38 252 LX-14 252"/>`);
+  }
+  return (cloak+torso+legs+head+gear).replace(/C X/g,"C ").replace(/ X/g," ");
 }
+
 function battleSVG(f){
   const party=S.party.filter(p=>!p.isBoss), n=party.length;
-  const xs=party.map((p,k)=>760-(n-1-k)*78);
+  const xs=party.map((p,k)=>768-(n-1-k)*90);
   const hitBy={}; (f.swingVs||[]).forEach(([i,h])=>{ hitBy[i]=Math.max(hitBy[i]||0, h?2:1); });
   const heroes=party.map((p,k)=>{
     const idx=S.party.indexOf(p), h=hitBy[idx], x=xs[k];
     const fx = h===2
-      ? `<g class="bs-impact"><path d="M${x-58} 238 l28 0 M${x-44} 224 l0 28 M${x-54} 228 l20 20 M${x-34} 228 l-20 20"/></g>
-         <g class="bs-claw"><path d="M${x-30} 196 l26 60 M${x-20} 192 l26 60 M${x-10} 188 l26 60"/></g>`
-      : h===1 ? `<path class="bs-whoosh" d="M${x-90} 170 C${x-40} 200 ${x-40} 280 ${x-90} 310"/>` : "";
-    return `<g class="bs-hero${h===2?" bs-hit":""}">${heroArt(x,p)}</g>${fx}`;
+      ? `<path class="bs-impact" d="${SIL.star(x-46,236,40,14,9)}"/>
+         <path class="bs-claw" d="M${x-36} 186 C${x-20} 220 ${x-8} 250 ${x+4} 286 L${x-4} 252 Z M${x-22} 180 C${x-6} 214 ${x+6} 244 ${x+18} 280 L${x+10} 246Z M${x-8} 176 C${x+8} 208 ${x+20} 238 ${x+32} 272 L${x+24} 240Z"/>`
+      : h===1 ? `<path class="bs-whoosh" d="M${x-98} 170 C${x-48} 200 ${x-48} 280 ${x-98} 312 C${x-64} 278 ${x-64} 206 ${x-98} 170Z"/>` : "";
+    return `<g transform="translate(${x} 352) scale(.8) translate(${-x} -352)"><g class="bs-hero${h===2?" bs-hit":""}">${heroArt(x,p)}</g>${fx}</g>`;
   }).join("");
-  const scale=f.boss?1.15:1;
+  const scale=f.boss?1.2:1.1;
   const still=window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const BG="#14100c";
   // Standalone (it becomes a background image), so colours are literal and
   // the fade/lunge/recoil animations live inside the SVG itself.
-  const css=`svg{fill:none;stroke-linecap:round;stroke-linejoin:round}
-    .all{opacity:.2${still?"":";animation:in 3.2s ease-out both"}}
-    .gr{stroke:#3a3026;stroke-width:2}
-    .mob{stroke:#c2564a;stroke-width:3${still?"":";animation:lunge .7s ease-out"}}
-    .bs-hero{stroke:#e8dcc4;stroke-width:2.5;transform-box:fill-box;transform-origin:50% 100%}
+  const css=`svg{stroke-linecap:round;stroke-linejoin:round}
+    .all{opacity:.16${still?"":";animation:in 3.2s ease-out both"}}
+    .f{fill:#9a3a2e;stroke:none} .s{fill:none;stroke:#9a3a2e}
+    .h{fill:#d8c9ad;stroke:none} .hs{fill:none;stroke:#d8c9ad}
+    .c{fill:none;stroke:${BG};stroke-width:2.5} .k{fill:${BG};stroke:none}
+    .g{fill:#e0a83a;stroke:none} .m{fill:none;stroke:#9a8f7c;stroke-width:2}
+    .gr{fill:none;stroke:#3a3026;stroke-width:2}
+    .mob{${still?"":"animation:lunge .7s ease-out"}}
+    .bs-hero{transform-box:fill-box;transform-origin:50% 100%}
     .bs-hit{${still?"":"animation:recoil .6s ease-out .25s both"}}
-    .bs-impact{stroke:#c9a227;stroke-width:3}
-    .bs-claw{stroke:#c2564a;stroke-width:3}
-    .bs-whoosh{stroke:#9a8f7c;stroke-width:2;stroke-dasharray:6 8}
+    .bs-impact{fill:#e0a83a} .bs-claw{fill:#f0e2c4} .bs-whoosh{fill:#9a8f7c;opacity:.6}
     .bs-impact,.bs-claw,.bs-whoosh{transform-box:fill-box;transform-origin:center${still?"":";animation:pop 1s ease-out .2s both"}}
-    @keyframes in{0%{opacity:0}14%{opacity:.62}100%{opacity:.2}}
+    @keyframes in{0%{opacity:0}14%{opacity:.8}100%{opacity:.16}}
     @keyframes lunge{0%{transform:translateX(-60px)}45%{transform:translateX(30px)}100%{transform:translateX(0)}}
     @keyframes recoil{0%{transform:rotate(0)}30%{transform:rotate(9deg) translateX(10px)}100%{transform:rotate(0)}}
-    @keyframes pop{0%{opacity:0;transform:scale(.4)}25%{opacity:1}100%{opacity:.4;transform:scale(1.2)}}`;
+    @keyframes pop{0%{opacity:0;transform:scale(.4)}25%{opacity:1}100%{opacity:.5;transform:scale(1.15)}}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><!--${f.swingTok}--><style>${css}</style><g class="all">
     <path class="gr" d="M10 360 L790 360"/>
-    <g class="mob"><g transform="translate(${f.boss?-40:0},${f.boss?-55:0}) scale(${scale})">${monsterArt(f)}</g></g>
+    <g class="mob">${ART.speed}<g transform="translate(30 352) scale(${scale}) translate(-30 -352)">${monsterArt(f)}</g></g>
     ${heroes}</g></svg>`;
 }
+
 const Battle={
   shown:null,
   show(f){
