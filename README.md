@@ -17,11 +17,30 @@ underlying actions.
 - **Solo or multiplayer.** Host a game and share a link; up to three friends
   join as their own characters. The host's browser runs the rules; guests
   send intents and receive results, so a modified guest client can't cheat.
-- **Three dungeons** to choose from at character creation — a barrow, a
-  drowned chancel and a wood that will not stop growing — each with its own
-  monsters, rooms, atmosphere and prize.
-- **Six classes, five ancestries, six backgrounds**, each with mechanical
-  effects (not just flavor text) built on the SRD 5.2.1 ruleset.
+- **Four dungeons** to choose from at character creation — a barrow, a
+  drowned chancel, a wood that will not stop growing, and the Sunken Reef
+  (fully underwater, with teleport traps) — each with its own monsters,
+  rooms, atmosphere and prize.
+- **Six classes, six ancestries (including Triton), six backgrounds**, each
+  with mechanical effects (not just flavor text) built on the SRD 5.2.1
+  ruleset.
+- **Levelling up.** XP earns levels; every level grants 2 ability points the
+  player spends on the abilities they choose (max 20). Points can be spent
+  any time — mid-fight, between turns, or on the victory screen — and never
+  cost an action.
+- **Favorite characters.** Save any character (stats, level, gear) to the
+  browser and bring them into a new run. Every player, guests included, can
+  save; saved favorites update automatically as the character progresses.
+- **Status effects** (poisoned, stunned, burning and more) that last one or
+  several turns, shown as chips on the turn bar.
+- **Keys and locks.** Find a rusty key and a locked chest or door turns up
+  ahead with treasure behind it — unless it's a mimic.
+- **Cutting Words** insults are shown to every player at the table.
+- **Woodcut silhouette art**, all vector and drawn in code (no image
+  downloads): an animated battle scene behind the story whenever a monster
+  attacks, a scene for each area as the party enters it (entrance, interiors
+  and vault, tinted per dungeon), and an icon for every item — shown as a
+  card when it's found and beside it in the inventory.
 - **Traitor Mode** (2+ players): the host can secretly arm it. Arming it is
   silent — nobody else is told the mode is even on, and the state their
   browser receives says it was never switched on. One party member is chosen
@@ -45,6 +64,10 @@ underlying actions.
   Either way, the model only ever rewrites the sentence describing an
   outcome that dice and rules have already locked in — it never decides a
   hit, a roll, or a death.
+- **Optional AI Dungeon Master** (cloud AI): `/api/dm` lets the model steer
+  the run — which room comes next, what lurks there — and judge freeform
+  actions. It only ever chooses from fixed menus the game offers, and the
+  dice still decide every outcome.
 - Manual dice-rolling ceremony, sound effects, mobile-friendly layout, and
   save/load to a local file — all client-side, no account or database.
 
@@ -57,13 +80,13 @@ open an issue or fork if you want to self-host elsewhere.
 
 ## Cloud AI setup
 
-The "Connect cloud AI" button needs one environment variable on whatever
+The "Connect cloud AI" button (and the AI Dungeon Master, `/api/dm`) needs one environment variable on whatever
 deployment is serving the game:
 
 | Variable | Required | Purpose |
 |---|---|---|
 | `GROQ_API_KEY` | yes | A free key from [console.groq.com/keys](https://console.groq.com/keys). Without it, `/api/narrate` returns a clean "not configured" response and the game falls back to built-in narration. |
-| `NARRATE_CLIENT_KEY` | no | If set, `/api/narrate` only accepts requests carrying a matching `x-barrow-key` header (the client already sends the fixed value `barrow-of-vethkar`). This is a light deterrent against random bots hitting the endpoint, not real security — the value is visible in this repo's own client code. |
+| `NARRATE_CLIENT_KEY` | no | If set, `/api/narrate` and `/api/dm` only accepts requests carrying a matching `x-barrow-key` header (the client already sends the fixed value `barrow-of-vethkar`). This is a light deterrent against random bots hitting the endpoint, not real security — the value is visible in this repo's own client code. |
 
 On Vercel: Project → Settings → Environment Variables → add `GROQ_API_KEY` →
 redeploy.
