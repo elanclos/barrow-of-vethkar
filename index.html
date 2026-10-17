@@ -3376,6 +3376,22 @@ attempt(action, arg, target){
 
 /* ---- the authoritative turn ---- */
 async perform(a, action, arg, target){
+  // Spending a level-up ability point only touches that one character, so it
+  // skips the busy lock, the turn order and the game-over check. Before, it
+  // was silently dropped while a turn was still settling (AI narration, the
+  // AI DM, another player's move) and on the victory/defeat screen.
+  if(S && action==="asi"){
+    const pc=PC(a), k=target;
+    if(!pc || !ABILS.includes(k) || (pc.asi||0)<=0 || pc.ab[k]>=20 || pc.isBoss) return;
+    const own = Net.mode==="host" && !BUF;   // mid-turn? ride along with that turn's broadcast
+    if(own) BUF=[];
+    const ev=[{t:"asi", vs:a, ab:k}];
+    apply(ev);
+    const l=Narrator.line(ev[0]); if(l) out(l);
+    sync(); G.choices();
+    if(own) G.finish();
+    return;
+  }
   if(!S || S.flags.dead || S.flags.won) return;
   // darkstrike is here too: the revealed traitor isn't in the turn order
   // any more (conscious() excludes them), so it needs the same exemption
