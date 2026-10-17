@@ -67,6 +67,8 @@ button{font-family:inherit}
 .favrow{display:flex; align-items:center; gap:10px; border:1px solid var(--line, #3a342a); border-radius:6px; padding:6px 8px}
 .favrow .favtxt{flex:1; min-width:0; font-size:13px}
 .favrow .ch{margin:0; padding:6px 10px; width:auto}
+.dmsay{display:block; color:#b9a7e0; font-style:italic; border-left:3px solid currentColor; padding-left:8px; margin:4px 0}
+.dmsay.inline{display:inline; border:0; padding:0; margin:0}
 .taunt{display:block; color:var(--gold, #c9a227); font-style:italic; border-left:3px solid currentColor; padding-left:8px; margin:4px 0}
 .orc{color:var(--purple); font-size:14px}
 .who{color:var(--blue); font-weight:600}
@@ -316,6 +318,7 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
   <button class="tb" id="mpbtn" onclick="G.multiplayer()">Play with friends</button>
   <button class="tb" id="localaibtn" onclick="G.tryOllama(true)">Connect local AI</button>
   <button class="tb" id="cloudaibtn" onclick="G.tryCloud(true)">Connect cloud AI</button>
+  <button class="tb hot" id="dmbtn" onclick="G.toggleDM()" title="With Cloud AI connected, the AI also runs rooms and rules on actions the game has no rule for. Dice still decide everything.">🎭 AI DM: On</button>
   <button class="tb" onclick="G.save()">Save</button>
   <button class="tb" onclick="document.getElementById('file').click()">Load</button>
   <button class="tb" onclick="G.help()">Help</button>
@@ -1562,6 +1565,48 @@ const Rules = {
   revive(a, targetIdx){
     return [{t:"revive", src:a, vs:targetIdx, amt:R.dice(2,4)+2}];
   },
+  // AI-judged freeform action. The AI only picks: which ability, how hard,
+  // and one effect each for success/failure from lists fixed here. The roll
+  // is ours; anything off-list or missing becomes "nothing"; null → caller
+  // falls back to the ordinary oracle.
+  async aiJudge(a, text, item){
+    const pc=PC(a), room=S.map[S.at], f=S.fight;
+    const okS = f ? ["damage","edge","rattle","heal", ...(f.boss?[]:["escape"]), "insight","nothing"]
+                  : ["edge","heal","find","insight","nothing"];
+    const okF = f ? ["hurt","exposed","nothing"] : ["hurt","noise","nothing"];
+    const st={...DM.snapshot(),
+      actor:{index:a, name:pc.name, class:pc.cls, abilities:pc.ab, using:item||null, inventory:pc.inv.slice(0,12)},
+      attempt:String(text||"").slice(0,300), SUCCESS_EFFECTS:okS, FAILURE_EFFECTS:okF};
+    const res=await DM.call("judge", st);
+    if(!res || !res.success || !res.failure) return null;
+    if(!S.party[a] || (f && S.fight!==f)) return null;          // state moved on underneath us
+    const abil=ABILS.includes(res.abil) ? res.abil : guessAbility(text);
+    const sEff=okS.includes(res.success.effect) ? res.success.effect : "nothing";
+    const fEff=okF.includes(res.failure.effect) ? res.failure.effect : "nothing";
+    let dc=Math.max(8, Math.min(18, Math.round(Number(res.dc)||12)));
+    dc=Math.max(dc, JUDGE_MIN_DC[sEff]||8);
+    const c=Rules.check(a, abil, dc, false, "oracle");
+    const line=String((c.ok?res.success.line:res.failure.line)||"").trim();
+    const ev=[{t:"judge", src:a, text, abil, roll:c, line, verbatim:true}];
+    if(c.ok){
+      switch(sEff){
+        case "damage": ev.push({t:"hit", src:a, vs:"mob", dmg:Math.max(1,R.dice(2,6)+primeMod(pc)), auto:true, wpn:"a move nobody saw coming"}); break;
+        case "edge":   ev.push({t:"edge", vs:a}); break;
+        case "rattle": ev.push({t:"rattle", src:a, n:1}); break;
+        case "heal":   if(pc.hp<pc.hpMax) ev.push({t:"heal", vs:a, amt:R.d(4)+1}); break;
+        case "find":   ev.push({t:"dmfound", vs:a, potion:R.d(3)===3}); break;
+        case "escape": ev.push({t:"fled", src:a, judged:true}); break;
+        case "insight":ev.push({t:"insight", src:a}); break;
+      }
+    } else {
+      switch(fEff){
+        case "hurt":    ev.push({t:"scrape", vs:a, dmg:R.d(4)}); break;
+        case "noise":   ev.push({t:"noise"}); break;
+        case "exposed": if(S.fight) ev.push(...Rules.monsterTurn(S.fight)); break;
+      }
+    }
+    return ev;
+  },
   freeform(a, text, item){
     const abil=guessAbility(text);
     const o=Oracle.ask(R.pick(["even","even","likely","unlikely"]));
@@ -1645,6 +1690,13 @@ function apply(events){
       case "revive": { const g=PC(e.src), t=PC(e.vs); g.potions--; t.down=false; t.hp=e.amt; t.fx={}; break; }
       case "stand": { const p=PC(e.vs); p.hp=Math.max(1,Math.floor(p.hpMax/4)); p.down=false; p.stand=true; break; }
       case "loot": PC(e.vs).inv.push(e.what); if(e.what===KEY_ITEM) ensureLockAhead(); break;
+      case "dmhide": { const rm=S.map[S.at]; if(!rm.loot){ rm.loot=e.what; rm.searched=false; } break; }
+      case "dmfound": {
+        const rm=S.map[S.at], p=PC(e.vs);
+        if(rm.loot && !rm.searched){ e.what=rm.loot; p.inv.push(rm.loot); rm.searched=true; if(rm.loot===KEY_ITEM) ensureLockAhead(); }
+        else if(e.potion){ p.potions++; e.gotPotion=true; }
+        break;
+      }
       case "unlocked": { const rm=S.map[S.at]; if(rm.lock){ rm.lock.opened=true; rm.lock.by=e.src; } break; }
       case "itemused": { const p=PC(e.src); const i=p.inv.indexOf(e.item); if(i>=0) p.inv.splice(i,1); break; }
       case "move": S.at=e.to; break;
@@ -1783,6 +1835,19 @@ const Narrator = {
         ? `🗝 ${escHtml(PC(e.src).name)} works the rusty key into the lock. It grinds, sticks, and turns — <span class="hit">the lid comes up.</span>`
         : `🗝 ${escHtml(PC(e.src).name)} works the rusty key into the lock. It grinds, sticks, and turns — <span class="hit">behind the door, a cramped storeroom nobody has opened in years.</span>`;
       case "mimic": return `<span class="hurt">The lid keeps opening. It has teeth. The chest was never a chest.</span>`;
+      case "dmsay": return `<span class="dmsay">🎭 ${escHtml(e.text)}</span>`;
+      case "judge": {
+        const L=e.line?` <span class="dmsay inline">🎭 ${escHtml(e.line)}</span>`:"";
+        return `${N.nm(e.src)} tries it — ${RL(`${e.abil.toUpperCase()} ${e.roll.tot} vs DC ${e.roll.dc}`)} — `+
+               (e.roll.ok?`<span class="hit">it works.</span>`:`<span class="miss">it doesn't.</span>`)+L;
+      }
+      case "dmtrap": return `${escHtml(PC(e.vs).name)} reacts — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)} — `+
+        (e.roll.ok?`<span class="hit">and gets clear.</span>`:`<span class="hurt">and is caught.</span>`);
+      case "dmhide": return `<span class="sys">Something here may be worth a proper search.</span>`;
+      case "dmfound": return e.what ? `<span class="hit">${N.nm(e.vs)} turns up ${escHtml(e.what)}.</span>`
+                       : e.gotPotion ? `<span class="hit">${N.nm(e.vs)} turns up a sealed potion.</span>`
+                       : `<span class="sys">Nothing new turns up.</span>`;
+      case "dmwander": return null;
       case "stunlost": return `<span class="hurt">💫 ${escHtml(PC(e.src).name)} is stunned, and the turn goes by without them.</span>`;
       case "asi": return `<span class="hit">${escHtml(PC(e.vs).name)}'s ${e.ab.toUpperCase()} rises to <b>${e.to}</b>.</span>`;
       case "taunt": return `<span class="taunt">🎭 ${escHtml(PC(e.src).name)}: <b>${e.text}</b></span>`;
@@ -1794,7 +1859,7 @@ const Narrator = {
       case "noise": return `<span class="hurt">Something goes over with a clatter. The sound travels a long way down here.</span>`;
       case "rest": return `You wedge yourselves into a corner where nothing can come at your backs, and close your eyes.`;
       case "wandering": return `<span class="hurt">The rest does not finish.</span>`;
-      case "fled": return e.auto
+      case "fled": return e.judged ? `<span class="hit">${N.nm(e.src)} makes the opening, and the party gets clear.</span>` : e.auto
         ? `<span class="hit">${N.nm(e.src)} slips the lock and the party is through before anything notices.</span>`
         : `<span class="hit">${N.nm(e.src)} breaks away and the party goes with them</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
       case "nofled": return `<span class="hurt">${N.nm(e.src)} turns to run and it is already moving</span> — ${RL(`DEX ${e.roll.tot} vs DC ${e.roll.dc}`)}.`;
@@ -1839,8 +1904,10 @@ const Narrator = {
     // Verbatim events (a bard's cutting words) are printed exactly as
     // written, ahead of everything else, and never sent to the AI — a
     // reworded insult is not the insult the player earned.
-    events.filter(e=>e.verbatim).map(Narrator.line).filter(Boolean).forEach(l=>out(l));
+    const vlines=events.filter(e=>e.verbatim).map(Narrator.line).filter(Boolean);
+    vlines.forEach(l=>out(l));
     const lines=events.filter(e=>!e.verbatim).map(Narrator.line).filter(Boolean);
+    DM.note(vlines.concat(lines).join(" ").replace(/<[^>]+>/g,""));
     if(!lines.length) return;
     const plain=lines.join(" ");
     if(!Narrator.ollama){ out(plain); return; }
@@ -1899,6 +1966,60 @@ Scene: ${context||"the barrow"}.`;
       Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in"); updateAiButtons();
       return null;
     }
+  }
+};
+
+/* ------------------------------------------------- AI dungeon master --- */
+/* With Cloud AI connected (and the 🎭 AI DM toggle on), the AI also takes
+   part in play — but only by CHOOSING from menus this file hands it. Dice
+   decide every outcome; the host re-checks every answer (move on the list,
+   target exists, DC clamped, per-run caps) before acting on it; anything
+   wrong, slow or missing just falls back to the ordinary game. Runs on the
+   host only — guests get the results like any other turn. */
+const DM_CAPS = {wander:2, trap:3, loot:3, boon:3};      // per run
+const JUDGE_SUCCESS = ["damage","edge","rattle","heal","find","escape","insight","nothing"];
+const JUDGE_FAILURE = ["hurt","noise","exposed","nothing"];
+// A clever trick may not be easier than the effect it buys.
+const JUDGE_MIN_DC = {damage:13, escape:12, find:11, heal:10};
+const DM = {
+  enabled:true,
+  recent:[],
+  on(){ return DM.enabled && Narrator.ollama && Narrator.backend==="cloud" && Net.mode!=="guest" && !!S; },
+  note(plain){ if(!plain) return; DM.recent.push(plain.slice(0,200)); if(DM.recent.length>6) DM.recent.shift(); },
+  ledger(){ if(!S.dm) S.dm={wander:0,trap:0,loot:0,boon:0,rooms:{}}; return S.dm; },
+  snapshot(){
+    const r=S.map[S.at], D=DUNGEONS[S.dun];
+    return {
+      dungeon:D.name, place:PLACE(), depth:S.at+1, of:S.map.length,
+      room:{name:r.n, desc:`${r.f} ${r.det}`},
+      escaping_with_prize:!!S.flags.crown,
+      fight: S.fight ? {name:S.fight.name, health:Math.round(100*S.fight.hp/S.fight.hpMax)+"%"} : null,
+      party:S.party.map((p,i)=>({index:i, name:p.name, class:p.cls, level:p.lvl,
+        health:Math.round(100*p.hp/p.hpMax)+"%", down:!!p.down,
+        status:Object.keys(p.fx||{}).filter(k=>p.fx[k]>0)})).filter(p=>!S.party[p.index].isBoss),
+      recent:DM.recent.slice(-6)
+    };
+  },
+  async call(mode, state){
+    try{
+      const res=await fetch("/api/dm",{
+        method:"POST", headers:{"Content-Type":"application/json","x-barrow-key":"barrow-of-vethkar"},
+        body:JSON.stringify({mode, state}), signal:AbortSignal.timeout(9000)
+      });
+      if(!res.ok) return null;
+      const j=await res.json();
+      return j && j.result || null;
+    }catch(e){ return null; }       // never disconnects the narrator — just no DM this time
+  },
+  // Monsters the DM may send: this dungeon's own table for the current depth.
+  tier(){ const t=DUNGEONS[S.dun].tables; return S.at<=3 ? t.early : S.at<=6 ? t.mid : t.late; },
+  allowedMoves(){
+    const L=DM.ledger(), m=["none","twist"];
+    if(!S.flags.crown && S.at>0 && L.wander<DM_CAPS.wander) m.push("wander");
+    if(L.trap<DM_CAPS.trap && conscious().length) m.push("trap");
+    if(!S.flags.crown && !S.map[S.at].loot && L.loot<DM_CAPS.loot) m.push("loot");
+    if(L.boon<DM_CAPS.boon) m.push("boon");
+    return m;
   }
 };
 
@@ -2678,6 +2799,8 @@ start(){
   const db=document.getElementById("dicebtn");
   if(db) db.textContent = G.manualDice ? "🎲 Dice Rolls: On" : "🎲 Dice Rolls: Off";
   try{ SFX.on = localStorage.getItem("barrow-sfx")!=="0"; }catch(e){ SFX.on=true; }
+  try{ DM.enabled = localStorage.getItem("barrow-aidm")!=="0"; }catch(e){ DM.enabled=true; }
+  updateAiButtons();
   const sb=document.getElementById("sfxbtn");
   if(sb) sb.textContent = SFX.on ? "🔊 Sound: On" : "🔇 Sound: Off";
   Music.init();
@@ -2879,6 +3002,66 @@ send(kind, payload){
   Net.applyIdentity(S.me, kind, payload);
 },
 
+// The AI Dungeon Master's move for a room the party has just entered quietly.
+// Runs inside perform()'s busy lock, so nothing else can act while it thinks.
+async dmTurn(){
+  if(!DM.on() || S.flags.dead || S.flags.won || S.fight) return;
+  if(S.at===S.map.length-1) return;                       // the vault is the boss's
+  const L=DM.ledger(), key=`${S.dun}:${S.at}${S.flags.crown?":out":""}`;
+  if(L.rooms[key]) return;
+  L.rooms[key]=1;
+  const allowed=DM.allowedMoves(), mons=DM.tier(), LOOT=["Oil flask","a valuable","a rusty key"];
+  dot("busy");
+  const res=await DM.call("dm", {...DM.snapshot(), ALLOWED_MOVES:allowed,
+    MONSTERS:mons.map(k=>({key:k, name:MONSTERS[k].name})), LOOT});
+  dot(Narrator.ollama?"on":"");
+  if(!res || !allowed.includes(res.move) || S.fight || S.flags.dead) return;
+  const r=S.map[S.at], live=conscious();
+  const tgt = live.includes(res.target) ? res.target : (live.length ? R.pick(live) : null);
+  const line=String(res.line||"").trim();
+  const ev=[];
+  switch(res.move){
+    case "wander":
+      L.wander++; ev.push({t:"dmwander", key: mons.includes(res.monster) ? res.monster : R.pick(mons)}); break;
+    case "trap": {
+      if(tgt===null) break;
+      L.trap++;
+      const c=Rules.check(tgt,"dex",12, skilledIn(PC(tgt),"acrobatics"));
+      ev.push({t:"dmtrap", vs:tgt, roll:c});
+      // A DM's trap stings but never knocks anyone out on its own.
+      const dmg=Math.min(R.d(6), PC(tgt).hp-1);
+      if(!c.ok && dmg>0) ev.push({t:"scrape", vs:tgt, dmg});
+      break;
+    }
+    case "loot": {
+      L.loot++;
+      const d=LOOT.includes(res.detail) ? res.detail : "a valuable";
+      ev.push({t:"dmhide", what: d==="Oil flask" ? "Oil flask" : d==="a rusty key" ? KEY_ITEM : R.pick(T.treasure)});
+      break;
+    }
+    case "boon": {
+      if(tgt===null) break;
+      L.boon++;
+      const p=PC(tgt);
+      ev.push(p.hp<p.hpMax ? {t:"heal", vs:tgt, amt:R.d(6)+p.lvl} : {t:"edge", vs:tgt});
+      break;
+    }
+  }
+  if(line) ev.unshift({t:"dmsay", text:line, verbatim:true});
+  if(!ev.length) return;
+  if(Net.mode==="host") BUF=[];
+  apply(ev);
+  await Narrator.render(ev, r.n);
+  const w=ev.find(e=>e.t==="dmwander");
+  if(w){
+    const m=spawn(w.key);
+    S.fight={...m}; S.round=1; S.acted=[]; S.active=conscious()[0]??0;
+    S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
+    out(`<span class="hurt">${m.the} — ${m.fl}.</span>`);
+  }
+  sync(); G.choices(); G.finish();
+},
+
 describeRoom(first){
   const r=S.map[S.at];
   scene(r.n);
@@ -2947,6 +3130,14 @@ toggleDice(){
   if(b) b.textContent = G.manualDice ? "🎲 Dice Rolls: On" : "🎲 Dice Rolls: Off";
 },
 
+toggleDM(){
+  DM.enabled=!DM.enabled;
+  try{ localStorage.setItem("barrow-aidm", DM.enabled?"1":"0"); }catch(e){}
+  updateAiButtons();
+  out(`<span class="sys">🎭 AI Dungeon Master ${DM.enabled
+    ? (Narrator.ollama&&Narrator.backend==="cloud" ? "on — it will run rooms and rule on unusual actions. Dice still decide." : "on — it takes part once Cloud AI is connected.")
+    : "off — the game runs every room itself again."}</span>`, true);
+},
 toggleSfx(){
   SFX.on = !SFX.on;
   try{ localStorage.setItem("barrow-sfx", SFX.on?"1":"0"); }catch(e){}
@@ -3159,10 +3350,18 @@ async perform(a, action, arg, target){
     case "hide": ev=Rules.hide(a, S.fight); spent=true; break;
 
     case "freeform":
-      out(`<span class="sys">The rules have no entry for that, so ${DUNGEONS[S.dun].short} decides.</span>`);
-      ev=Rules.freeform(a, arg, G.pendingItem);
+      if(DM.on()){
+        out(`<span class="sys">🎭 The Dungeon Master considers it…</span>`);
+        dot("busy");
+        ev=await Rules.aiJudge(a, arg, G.pendingItem) || [];
+        dot(Narrator.ollama?"on":"");
+      }
+      if(!ev.length){
+        out(`<span class="sys">The rules have no entry for that, so ${DUNGEONS[S.dun].short} decides.</span>`);
+        ev=Rules.freeform(a, arg, G.pendingItem);
+        if(ev[0] && !ev[0].o.yes && ev[0].roll.fumble) ev.push({t:"note", text:`And then ${Oracle.twist()}.`});
+      }
       G.pendingItem=null; spent=true;
-      if(ev[0] && !ev[0].o.yes && ev[0].roll.fumble) ev.push({t:"note", text:`And then ${Oracle.twist()}.`});
       break;
 
     // ---- traitor mode: secret actions, visible only on the traitor's own
@@ -3279,9 +3478,9 @@ async resolve(a, ev, spent){
     out(`<span class="hurt">Something found you. ${m.the} — ${m.fl}.</span>`);
   }
 
-  if(ev.some(e=>e.t==="move")){ G.describeRoom(false); sync(); G.finish(); return; }
+  if(ev.some(e=>e.t==="move")){ G.describeRoom(false); sync(); G.finish(); await G.dmTurn(); return; }
   const tp=ev.find(e=>e.t==="teleport");
-  if(tp){ G.describeRoom(!!tp.dun); sync(); G.finish(); return; }
+  if(tp){ G.describeRoom(!!tp.dun); sync(); G.finish(); await G.dmTurn(); return; }
 
   // turn order + the monster's swing
   if(S.fight && S.fight.hp>0 && !S.flags.dead){
@@ -3754,6 +3953,15 @@ help(){
        to <em>Yes, and</em> plus an ability check matched to what you're attempting. It has real
        consequences in both directions.</p>
 
+    <h3 style="margin-top:22px">🎭 AI Dungeon Master</h3>
+    <p>With <b>Cloud AI</b> connected and <b>AI DM</b> on, the AI takes part in play. When you enter a quiet
+       room it may send a wandering monster, spring a trap (you get a DEX save), hide something worth
+       searching for, help someone out, or just set the mood. Anything you type that the rules don't
+       cover is judged by it: it picks the ability and difficulty, and what success or failure means.</p>
+    <p class="dim">It only ever chooses from fixed menus — the dice decide every result, traps can't knock
+       you out, and each kind of move is capped per run. If it is slow or unavailable, the game carries on
+       exactly as before. In multiplayer, only the host needs it.</p>
+
     <h3 style="margin-top:22px">Rusty keys</h3>
     <p>Most delves hide a 🗝 rusty key in an early room — if something glints, search. Somewhere
        after it is a locked chest or door. Unlock it for treasure, potions and experience. Chests
@@ -4032,7 +4240,9 @@ async tryCloud(loud){
     }
     Narrator.ollama=true; Narrator.backend="cloud"; Narrator.model="groq";
     dot("on"); aitxt("Narrator: cloud (groq)"); updateAiButtons();
-    if(loud) out(`<span class="sys">Cloud narrator connected. Rules are still decided by the game.</span>`);
+    if(loud) out(`<span class="sys">Cloud narrator connected. ${DM.enabled
+      ? "🎭 The AI Dungeon Master is on too: it will run rooms and rule on actions the game has no rule for — the dice still decide every outcome."
+      : "Rules are still decided by the game."}</span>`);
   }catch(e){
     Narrator.ollama=false; Narrator.backend=null; dot(""); aitxt("Narrator: built-in"); updateAiButtons();
     if(loud) modal(`<h3>Cloud narrator unavailable</h3>
@@ -4129,6 +4339,8 @@ function updateAiButtons(){
   lb.classList.toggle("hot", activeLocal);
   cb.textContent = activeCloud ? "Cloud AI connected" : "Connect cloud AI";
   cb.classList.toggle("hot", activeCloud);
+  const db=document.getElementById("dmbtn");
+  if(db){ db.textContent=`🎭 AI DM: ${DM.enabled?"On":"Off"}`; db.classList.toggle("hot", DM.enabled && activeCloud); }
 }
 // `sticky` marks a modal that must not be dismissed by clicking the backdrop.
 // The character creator and the resume-or-restart prompt are both shown while
