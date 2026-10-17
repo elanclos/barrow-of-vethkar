@@ -14,22 +14,23 @@ prose. Play by picking from 3–4 concrete choices each turn, or type what you
 want to do in plain English — a small parser maps free text to the same
 underlying actions.
 
-- **Solo or multiplayer.** Host a game and share a link; up to three friends
-  join as their own characters. The host's browser runs the rules; guests
+- **Solo or multiplayer.** Host a game and read out the four-letter room
+  code; up to three friends join as their own characters. The host's browser runs the rules; guests
   send intents and receive results, so a modified guest client can't cheat.
 - **Four dungeons** to choose from at character creation — a barrow, a
   drowned chancel, a wood that will not stop growing, and the Sunken Reef
   (fully underwater, with teleport traps) — each with its own monsters,
   rooms, atmosphere and prize.
-- **Six classes, six ancestries (including Triton), six backgrounds**, each
+- **Eight classes, ten ancestries (including Triton), six backgrounds**, each
   with mechanical effects (not just flavor text) built on the SRD 5.2.1
   ruleset.
 - **Levelling up.** XP earns levels; every level grants 2 ability points the
   player spends on the abilities they choose (max 20). Points can be spent
   any time — mid-fight, between turns, or on the victory screen — and never
   cost an action.
-- **Favorite characters.** Save any character (stats, level, gear) to the
-  browser and bring them into a new run. Every player, guests included, can
+- **Favorite characters.** Save any character (name, look, level, XP and
+  ability scores) to the browser and bring them into a new run; each run
+  starts with the class's own kit. Every player, guests included, can
   save; saved favorites update automatically as the character progresses.
 - **Status effects** (poisoned, stunned, burning and more) that last one or
   several turns, shown as chips on the turn bar.
@@ -64,9 +65,9 @@ underlying actions.
   Either way, the model only ever rewrites the sentence describing an
   outcome that dice and rules have already locked in — it never decides a
   hit, a roll, or a death.
-- **Optional AI Dungeon Master** (cloud AI): `/api/dm` lets the model steer
-  the run — which room comes next, what lurks there — and judge freeform
-  actions. It only ever chooses from fixed menus the game offers, and the
+- **Optional AI Dungeon Master** (cloud AI): `/api/dm` lets the model act in
+  the rooms the party enters (a wandering monster, a trap, hidden loot, a
+  helping hand) and judge freeform actions. It only ever chooses from fixed menus the game offers, and the
   dice still decide every outcome.
 - Manual dice-rolling ceremony, sound effects, mobile-friendly layout, and
   save/load to a local file — all client-side, no account or database.
