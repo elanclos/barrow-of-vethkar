@@ -17,10 +17,13 @@ underlying actions.
 - **Solo or multiplayer.** Host a game and read out the four-letter room
   code; up to three friends join as their own characters. The host's browser runs the rules; guests
   send intents and receive results, so a modified guest client can't cheat.
-- **Four dungeons** to choose from at character creation — a barrow, a
-  drowned chancel, a wood that will not stop growing, and the Sunken Reef
-  (fully underwater, with teleport traps) — each with its own monsters,
-  rooms, atmosphere and prize.
+- **Five dungeons** to choose from at character creation — a barrow, a
+  drowned chancel, a wood that will not stop growing, the Sunken Reef
+  (fully underwater, with teleport traps), and the Underline, the abandoned
+  stations and sewers below New York City (track rats, sewer gators,
+  graffiti wraiths, a ghost Motorman, and Gutterscale, the White Queen Below,
+  guarding the Founder's Token at City Hall Loop) — each with its own
+  monsters, rooms, atmosphere and prize.
 - **Eight classes, ten ancestries (including Triton), six backgrounds**, each
   with mechanical effects (not just flavor text) built on the SRD 5.2.1
   ruleset.
