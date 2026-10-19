@@ -284,10 +284,13 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
    cause of the "error 153" this went through before). Each viewer plays
    the shared track independently with their own play/pause/volume; only
    *which* track is playing is host-controlled and broadcast. */
-#ytwrap{position:fixed; right:16px; bottom:16px; width:260px; background:var(--panel);
+#ytwrap{position:fixed; right:16px; top:var(--yttop,64px); width:260px; background:var(--panel);
   border:1px solid var(--line); border-radius:10px; box-shadow:0 6px 24px #0008; z-index:40;
   overflow:hidden}
 #ytwrap[hidden]{display:none}
+/* Tucked away from the menu: off screen but still mounted, so the music keeps
+   playing (display:none can pause or reload an embedded player). */
+#ytwrap.tucked{visibility:hidden; pointer-events:none; transform:translateX(120%)}
 #ythead{display:flex; align-items:center; gap:6px; padding:7px 8px; background:#150f0a;
   border-bottom:1px solid var(--line); cursor:default}
 #ytlabel{font-size:12px; color:var(--dim); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
@@ -312,7 +315,7 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
 #ytchange{background:none; border:none; color:var(--dim); text-decoration:underline;
   font-size:11px; cursor:pointer; font-family:inherit; margin-top:4px; padding:0}
 #ytchange:hover{color:var(--ink)}
-@media(max-width:820px){ #ytwrap{right:8px; bottom:8px; width:210px} }
+@media(max-width:820px){ #ytwrap{right:8px; width:210px} }
 </style>
 </head>
 <body>
@@ -388,6 +391,7 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
   <div id="ythead">
     <span id="ytlabel">🎵 table music</span>
     <button class="tb" id="ytmin" onclick="Music.toggleMin()" title="Collapse">–</button>
+    <button class="tb" id="ythide" onclick="Music.tuck(true)" title="Hide player (music keeps playing; bring it back with the 🎵 Music button)">▴</button>
     <button class="tb" id="ytclose" onclick="Music.close()" title="Stop and hide">✕</button>
   </div>
   <div id="ytbody">
@@ -2736,6 +2740,7 @@ const Music = {
       this.vol = saved.vol!=null ? saved.vol : 40;
       document.getElementById("ytwrap").hidden = !!saved.hidden;
       document.getElementById("ytwrap").classList.toggle("min", !!saved.min);
+      document.getElementById("ytwrap").classList.toggle("tucked", !!saved.tucked);
       if(!saved.hidden){ this.render(); this._spawn(); }
     }
   },
@@ -2750,11 +2755,14 @@ const Music = {
   },
 
   open(){
+    const w=document.getElementById("ytwrap");
+    if(!w.hidden && !w.classList.contains("tucked")){ this.tuck(true); return; }
+    if(w.classList.contains("tucked") && (this.url || Net.mode==="guest")){ this.tuck(false); return; }
     if(Net.mode==="guest"){
       // Guests never paste their own link — they just see and play
       // whatever the host has shared (or a note that nothing's playing).
       document.getElementById("ytwrap").hidden=false;
-      document.getElementById("ytwrap").classList.remove("min");
+      document.getElementById("ytwrap").classList.remove("min","tucked");
       this.render();
       if(this.videoId && !this.player) this._spawn();
       this._save();
@@ -2762,7 +2770,7 @@ const Music = {
     }
     if(this.url){
       document.getElementById("ytwrap").hidden=false;
-      document.getElementById("ytwrap").classList.remove("min");
+      document.getElementById("ytwrap").classList.remove("min","tucked");
       this.render();
       if(this.videoId && !this.player) this._spawn();
       this._save();
@@ -2789,7 +2797,7 @@ const Music = {
     this.fromName = ME() ? ME().name : "You";
     closeModal();
     document.getElementById("ytwrap").hidden=false;
-    document.getElementById("ytwrap").classList.remove("min");
+    document.getElementById("ytwrap").classList.remove("min","tucked");
     this._save();
     this.render();
     this.wantPlay=true;
@@ -2911,6 +2919,30 @@ const Music = {
     this.open();
   },
 
+  // Hide or show the player from the menu without stopping the music.
+  tuck(on){
+    const w=document.getElementById("ytwrap");
+    this.place();
+    w.classList.toggle("tucked", !!on);
+    if(!on){ w.hidden=false; w.classList.remove("min"); }
+    this._label();
+    this._save();
+  },
+
+  // Keep the card just under the menu bar, which wraps to more rows on
+  // narrow screens, so it never sits over the story or the Act button.
+  place(){
+    const t=document.getElementById("top");
+    if(t) document.documentElement.style.setProperty("--yttop", (t.getBoundingClientRect().bottom+8)+"px");
+  },
+
+  _label(){
+    const w=document.getElementById("ytwrap"), b=document.getElementById("musicbtn");
+    if(!b) return;
+    const showing = !w.hidden && !w.classList.contains("tucked");
+    b.textContent = showing ? "🎵 Hide Music" : (this.url && !w.hidden ? "🎵 Show Music" : "🎵 Music");
+  },
+
   toggleMin(){
     const w=document.getElementById("ytwrap");
     w.classList.toggle("min");
@@ -2919,16 +2951,19 @@ const Music = {
 
   close(){
     if(this.player && this.player.stopVideo) try{ this.player.stopVideo(); }catch(e){}
-    document.getElementById("ytwrap").hidden=true;
+    const w=document.getElementById("ytwrap");
+    w.hidden=true; w.classList.remove("tucked");
     this.wantPlay=false;
+    this._label();
     this._save();
   },
 
   _save(){
     const w=document.getElementById("ytwrap");
     try{ localStorage.setItem("barrow-music", JSON.stringify({
-      url:this.url, hidden:w.hidden, min:w.classList.contains("min"), vol:this.vol
+      url:this.url, hidden:w.hidden, min:w.classList.contains("min"), tucked:w.classList.contains("tucked"), vol:this.vol
     })); }catch(e){}
+    this._label();
   }
 };
 // Lazy-loads the YouTube IFrame Player API script the same way loadPeer()
@@ -3005,7 +3040,10 @@ start(){
   updateAiButtons();
   const sb=document.getElementById("sfxbtn");
   if(sb) sb.textContent = SFX.on ? "🔊 Sound: On" : "🔇 Sound: Off";
+  Music.place();
+  addEventListener("resize", ()=>Music.place());
   Music.init();
+  Music._label();
 
   // Offer to pick back up a delve in progress. A finished run (dead or won)
   // is not something to resume into — that goes straight to a new character.
