@@ -45,6 +45,13 @@ underlying actions.
   attacks, a scene for each area as the party enters it (entrance, interiors
   and vault, tinted per dungeon), and an icon for every item — shown as a
   card when it's found and beside it in the inventory.
+- **The Roots, a skill tree you grow yourself.** Every level after the first
+  earns a root. Open the Roots tab at any time (it never costs a turn) and
+  grow from any root you already have, in any direction, down into the
+  barrow. Deeper ground holds stronger roots; capstones only grow in The Deep.
+  Every class has three branches, every ancestry adds one root, and every
+  root is enforced by the rules engine. Saved favorites and old saves carry
+  over: their level becomes roots to grow. Spec: `specs/001-roots-skill-tree/`.
 - **Traitor Mode** (2+ players): the host can secretly arm it. Arming it is
   silent — nobody else is told the mode is even on, and the state their
   browser receives says it was never switched on. One party member is chosen

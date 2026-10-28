@@ -186,6 +186,60 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
   padding:0 12px; font-size:12px; cursor:pointer}
 #chatgo:hover{border-color:var(--gold)}
 
+/* ---- hamburger menu ---- */
+#top{position:relative}
+#menubtn{font-size:16px; padding:2px 10px; line-height:1.3}
+#menu{position:absolute; left:12px; top:calc(100% + 4px); z-index:45; width:250px; background:var(--panel);
+  border:1px solid #4a3d2c; border-radius:8px; box-shadow:0 12px 32px #000a; padding:6px 0; display:flex; flex-direction:column}
+#menu hr{border:0; border-top:1px solid var(--line); margin:5px 0}
+.mi{background:transparent; border:0; color:var(--ink); text-align:left; padding:0 16px; min-height:42px;
+  font-size:14px; cursor:pointer; display:flex; align-items:center; gap:8px}
+.mi:hover,.mi:focus-visible{background:#2a2219; outline:none}
+#mroots{margin-left:auto; color:var(--gold); font-size:12px}
+
+/* ---- tabs: Adventure | Roots ---- */
+#tabs{flex:none; display:flex; gap:2px; padding:0 20px; border-bottom:1px solid var(--line); background:#120e0a}
+.tab{background:transparent; border:0; border-bottom:3px solid transparent; color:var(--dim); padding:0 16px;
+  min-height:42px; font-size:13px; letter-spacing:.14em; text-transform:uppercase; cursor:pointer;
+  display:inline-flex; align-items:center; gap:8px}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--gold); border-bottom-color:var(--gold)}
+.badge{min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:var(--gold); color:#1a1409;
+  font-size:12px; font-weight:700; letter-spacing:0; display:inline-flex; align-items:center; justify-content:center}
+#log[hidden],#ctl[hidden],#rootsview[hidden],#menu[hidden],.badge[hidden]{display:none !important}
+
+/* ---- the Roots view ---- */
+#rootsview{flex:1; overflow-y:auto; padding:16px 20px 24px; min-height:0}
+.rhead{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; font-size:14px}
+.rhead .sp{flex:1}
+.rbody{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start}
+.rgrid{flex:999 1 460px; min-width:0; width:100%; height:auto; border:1px solid var(--line); border-radius:8px; background:#110c08}
+.rpanel{flex:1 1 260px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 16px}
+.rpanel h3{margin:2px 0 4px; font-size:20px; letter-spacing:.04em}
+.rpanel p{margin:4px 0 10px; font-size:14px}
+.rkick{font-size:11px; letter-spacing:.16em; color:var(--gold)}
+.rfx{margin:8px 0 12px; padding-left:18px; font-size:15px; line-height:1.5}
+.ropts{display:flex; flex-direction:column; gap:7px; max-height:460px; overflow-y:auto; padding-right:2px}
+.ropt{display:flex; gap:10px; align-items:flex-start; text-align:left; background:#1b150f; color:var(--ink);
+  border:1px solid var(--line); border-radius:6px; padding:9px 11px; cursor:pointer; min-height:44px; font-size:14px}
+.ropt:hover:not(:disabled){border-color:var(--gold)}
+.ropt:disabled{opacity:.55; cursor:not-allowed}
+.ropt i{flex:none; width:10px; height:10px; transform:rotate(45deg); margin-top:6px}
+.ropt span{display:flex; flex-direction:column; gap:1px}
+.ropt s{text-decoration:none; color:var(--dim); font-size:12px}
+.ropt em{font-style:normal; color:#c9bba0; font-size:13px; line-height:1.4}
+.ropt u{text-decoration:none; color:#d3a59c; font-size:12px}
+.rhelp{font-size:13px; margin:12px 0 0}
+.rband{font-size:11px; letter-spacing:.16em; fill:var(--dim)}
+.rlbl{font-size:12px; fill:var(--ink); text-anchor:middle; font-weight:600; pointer-events:none}
+.rnode{cursor:pointer; outline:none}
+.rnode.sel circle{stroke:var(--ink); stroke-width:3}
+.rnode:focus-visible circle{stroke:var(--ink); stroke-width:3}
+.rnode.bud.live circle{animation:rbreathe 2.4s ease-in-out infinite}
+@keyframes rbreathe{50%{stroke-opacity:.35}}
+@media (prefers-reduced-motion: reduce){ .rnode.bud.live circle{animation:none} }
+@media(max-width:820px){ #tabs{padding:0 8px} #rootsview{padding:12px 10px 20px} .tab{min-height:44px} }
+
 /* ---- avatars & creator ---- */
 .av{vertical-align:middle; flex:none}
 #pcname{display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:.04em}
@@ -234,11 +288,9 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
 #mobparty .hb i{display:block; height:100%; background:linear-gradient(90deg,#8c3a30,#c2564a)}
 
 /* ---- phone & small tablet: sidebar becomes a drawer ---- */
-#sheetbtn{display:none}
 #scrim{display:none; position:fixed; inset:0; background:#0a0806aa; z-index:39}
 @media(max-width:820px){
   .wrap{flex-direction:column}
-  #sheetbtn{display:inline-block}
   #sheetclose{display:inline-block !important}
   #mobparty.on{display:flex}
   #side{
@@ -321,21 +373,27 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
 <body>
 
 <div id="top">
+  <button class="tb" id="menubtn" onclick="G.menu()" aria-label="Menu" aria-haspopup="true" aria-expanded="false">☰</button>
   <span id="ai"><span id="dot"></span><span id="aitxt">Narrator: built-in</span></span>
   <span id="room"></span>
   <span class="sp"></span>
-  <button class="tb" id="sheetbtn" onclick="G.drawer()">☰ Sheet</button>
-  <button class="tb hot" id="dicebtn" onclick="G.toggleDice()">🎲 Dice Rolls: On</button>
-  <button class="tb hot" id="sfxbtn" onclick="G.toggleSfx()">🔊 Sound: On</button>
   <button class="tb" id="musicbtn" onclick="Music.open()">🎵 Music</button>
   <button class="tb" id="mpbtn" onclick="G.multiplayer()">Play with friends</button>
   <button class="tb" id="localaibtn" onclick="G.tryOllama(true)">Connect local AI</button>
   <button class="tb" id="cloudaibtn" onclick="G.tryCloud(true)">Connect cloud AI</button>
   <button class="tb hot" id="dmbtn" onclick="G.toggleDM()" title="With Cloud AI connected, the AI also runs rooms and rules on actions the game has no rule for. Dice still decide everything.">🎭 AI DM: On</button>
-  <button class="tb" onclick="G.saveMenu()">Save</button>
-  <button class="tb" onclick="document.getElementById('file').click()">Load</button>
-  <button class="tb" onclick="G.help()">Help</button>
   <input type="file" id="file" hidden accept=".json" onchange="G.load(this)">
+  <nav id="menu" hidden aria-label="Game menu">
+    <button class="mi" onclick="G.menu(false); G.tab('roots')">🌱 Roots <span id="mroots"></span></button>
+    <button class="mi" onclick="G.menu(false); G.openSheet()">📜 Character sheet</button>
+    <hr>
+    <button class="mi" id="dicebtn" onclick="G.toggleDice()">🎲 Dice Rolls: On</button>
+    <button class="mi" id="sfxbtn" onclick="G.toggleSfx()">🔊 Sound: On</button>
+    <hr>
+    <button class="mi" onclick="G.menu(false); G.saveMenu()">💾 Save</button>
+    <button class="mi" onclick="G.menu(false); document.getElementById('file').click()">📂 Load</button>
+    <button class="mi" onclick="G.menu(false); G.help()">❔ Help</button>
+  </nav>
 </div>
 
 <div class="wrap">
@@ -370,7 +428,12 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
   </aside>
 
   <main id="main">
+    <div id="tabs" role="tablist" aria-label="Views">
+      <button class="tab on" id="tabadv" role="tab" aria-selected="true" onclick="G.tab('adv')">Adventure</button>
+      <button class="tab" id="tabroots" role="tab" aria-selected="false" onclick="G.tab('roots')">Roots <span id="rootbadge" class="badge" hidden></span></button>
+    </div>
     <div id="mobparty"></div>
+    <div id="rootsview" hidden></div>
     <div id="log"></div>
     <div id="ctl">
       <div id="enemystat"><b id="enemyname"></b><div class="bar"><i id="enemyhpbar" style="width:100%"></i></div><span id="enemyfx" class="fxrow"></span></div>
@@ -1302,7 +1365,7 @@ function newPC(name, cls, anc, bg, av){
     inv:[...C.kit, B.item], potions:C.pots + (A.trait==="Versatile"?1:0),
     skills, power:{...C.power},
     av: av || autoAvatar(name),
-    edge:false, down:false, stand:false, rage:0, lucky:true, conn:null, pid:null
+    edge:false, down:false, stand:false, rage:0, lucky:true, conn:null, pid:null, roots:[]
   };
 }
 
@@ -1318,9 +1381,9 @@ function calcHpMax(pc){
   const C=CLASSES[pc.cls], m=mod(pc.ab.con);
   let hp=C.hd + m + C.hpb + (BACKGROUNDS[pc.bg]&&BACKGROUNDS[pc.bg].trait==="Hardened"?3:0);
   for(let l=2;l<=pc.lvl;l++) hp+=Math.max(2, Math.floor(C.hd/2)+1+m);
-  return hp;
+  return hp + RX(pc,"hp");
 }
-const calcAC = (pc)=> pc.cls==="Rogue" ? 13+mod(pc.ab.dex) : CLASSES[pc.cls].ac;
+const calcAC = (pc)=> (pc.cls==="Rogue" ? 13+mod(pc.ab.dex) : CLASSES[pc.cls].ac) + RX(pc,"ac");
 
 // Carry saved progress onto a freshly built character. Used both for a solo
 // player loading a favorite and by the host for a guest joining with one —
@@ -1341,8 +1404,13 @@ function applyProgress(pc, prog){
   if(total > 6*18 + 2 + ASI_PER_LEVEL*(lvl-1)) return pc;
   pc.lvl=lvl; pc.ab=ab; pc.asi=asi;
   pc.xp=Math.max(XP_NEED[lvl-1], Math.min(lvl<6?XP_NEED[lvl]-1:99999, prog.xp|0));
+  // Roots ride along with the rest of the progress, and are replayed through
+  // the growth rules rather than trusted. A saved favorite from before roots
+  // existed simply has none yet: it arrives with level-1 roots to grow.
+  pc.roots=validRoots(pc, prog.roots);
+  pc.potions+=RX(pc,"pots");
   pc.hpMax=calcHpMax(pc); pc.hp=pc.hpMax; pc.ac=calcAC(pc);
-  pc.power.uses=CLASSES[pc.cls].power.uses;
+  pc.power.uses=powerUsesFor(pc);
   return pc;
 }
 
@@ -1356,7 +1424,8 @@ const Favorites={
   snapshot(pc){
     return {id:pc.favId||("f"+Date.now().toString(36)+R.int(1e6).toString(36)),
       name:pc.name, cls:pc.cls, anc:pc.anc, bg:pc.bg, av:pc.av,
-      lvl:pc.lvl, xp:pc.xp, ab:{...pc.ab}, asi:pc.asi||0, saved:Date.now()};
+      lvl:pc.lvl, xp:pc.xp, ab:{...pc.ab}, asi:pc.asi||0,
+      roots:rootsOf(pc).map(g=>({id:g.id, r:g.r, c:g.c, f:g.f})), saved:Date.now()};
   },
   save(pc){
     const f=this.snapshot(pc);
@@ -1374,7 +1443,8 @@ const Favorites={
   autoUpdate(pc){
     if(!pc || !pc.favId || pc.isBoss) return false;
     const f=this.get(pc.favId); if(!f) return false;
-    const sig=(x)=>[x.name,x.lvl,x.xp,x.asi||0,...ABILS.map(k=>x.ab[k])].join("|");
+    const sig=(x)=>[x.name,x.lvl,x.xp,x.asi||0,...ABILS.map(k=>x.ab[k]),
+      rootsOf(x).map(g=>g.id+"@"+g.r+","+g.c).join(";")].join("|");
     if(sig(f)===sig(pc)) return false;
     return !!this.save(pc);
   },
@@ -1396,6 +1466,196 @@ const hasAnc = (pc, t) => ANCESTRIES[pc.anc] && ANCESTRIES[pc.anc].trait===t;
 const hasBg  = (pc, t) => BACKGROUNDS[pc.bg] && BACKGROUNDS[pc.bg].trait===t;
 const skilledIn = (pc, s) => (pc.skills||CLASSES[pc.cls].skill).includes(s);
 const primeMod  = (pc) => mod(pc.ab[CLASSES[pc.cls].prime]);
+
+/* --------------------------------------------------------------- roots --- */
+/* The Roots: a skill tree the player grows downward into the barrow, in any
+   direction. Points are earned by level (level - 1). Every root is a set of
+   effect keys, and every key is read by the rules engine at exactly one hook
+   point, so nothing on the Roots screen is flavour text. A character stores
+   only WHERE its roots grew (pc.roots = [{id,r,c,f}]); effects are always
+   recomputed from that list, never saved as numbers.
+
+   Grid: 6 rows on an offset hex lattice. Rows 0-1 Surface, 2-3 Depth,
+   4-5 The Deep. The ancestry seed root sits at row 0, column 4 and is
+   implicit. A root may grow only on an empty cell touching one already grown.
+   Tier 0 grows anywhere, tier 1 at Depth or deeper, tier 2 (capstones) only
+   in The Deep. Tier 1 needs its branch's tier 0. A capstone needs two roots
+   in its branch and level 5.                                                */
+const ROOT_ROWS=6, ROOT_SEED="0,4";
+const ROOT_DEPTH=["Surface","Depth","The Deep"];
+const rootCols = (r)=> r%2 ? 8 : 9;
+const rootBand = (r)=> r<2 ? 0 : r<4 ? 1 : 2;
+function rootNbrs(r,c){
+  const d = r%2 ? [[0,-1],[0,1],[-1,0],[-1,1],[1,0],[1,1]] : [[0,-1],[0,1],[-1,-1],[-1,0],[1,-1],[1,0]];
+  return d.map(([dr,dc])=>[r+dr,c+dc]).filter(([y,x])=>y>=0 && y<ROOT_ROWS && x>=0 && x<rootCols(y));
+}
+const ROLE_COLOR = {off:"#d0675a", def:"#7ea6cf", sup:"#c9a227", anc:"#7fa96a", earth:"#b3a283"};
+const CHK_LABEL = {search:"searching", talk:"talking your way out", flee:"breaking away", pray:"prayer",
+                   oracle:"wits (oracle) checks", hide:"hiding", stand:"a last stand"};
+
+const ROOTS = {};
+const ROOT_BRANCHES = {};               // "cls:key" -> {cls, key, name, role}
+function defBranch(cls, key, name, role, list){
+  ROOT_BRANCHES[cls+":"+key]={cls, key, name, role};
+  list.forEach(([n,fx],i)=>{
+    ROOTS[`${cls.slice(0,4).toLowerCase()}.${key}${i}`]={n, fx, cls, br:cls+":"+key, role,
+      t: i===0 ? 0 : i===3 ? 2 : 1, cap: i===3};
+  });
+}
+defBranch("Fighter","steel","Steel","off",[["Hewing Edge",{dmg:1}],["Opening Cut",{fadv:1}],["Riposte",{ripo:1}],["Sunder the Dead",{crit:1,stag:1}]]);
+defBranch("Fighter","bulwark","Bulwark","def",[["Shield Wall",{ac:1}],["Hold the Line",{fear:1}],["Deep Breath",{uses:1}],["Unburied",{unbur:1}]]);
+defBranch("Fighter","warlord","Warlord","sup",[["Field Dressing",{heal:2}],["Read the Field",{chk:{talk:2,flee:2}}],["Quartermaster",{pots:1}],["Sable Standard",{bless:1}]]);
+defBranch("Rogue","knives","Knives","off",[["Quick Blade",{atk:1}],["Twist the Knife",{sneak:1}],["First Blood",{fadv:1}],["Open Vein",{crit:1,stag:1}]]);
+defBranch("Rogue","shadow","Shadow","def",[["Soft Step",{chk:{hide:2,flee:2}}],["Dodge",{ac:1}],["Hard to Pin",{dr:1}],["No Body Found",{unbur:1}]]);
+defBranch("Rogue","fortune","Fortune","sup",[["Sharp Eyes",{chk:{search:2}}],["Light Fingers",{pots:1}],["Fast Talk",{chk:{talk:2}}],["Charmed Life",{luck:1}]]);
+defBranch("Cleric","radiance","Radiance","off",[["Burning Word",{pdmg:2}],["More Light",{uses:1}],["Sure Strike",{atk:1}],["Unending Flame",{uses:2,pdmg:2}]]);
+defBranch("Cleric","faith","Faith","def",[["Mail of Faith",{ac:1}],["Untroubled",{fear:1}],["Clean Blood",{ward:1}],["Not Yet",{unbur:1}]]);
+defBranch("Cleric","mercy","Mercy","sup",[["Steady Hands",{heal:2}],["Answered",{chk:{pray:3}}],["Spare Vials",{pots:1}],["Dawn Litany",{bless:1}]]);
+defBranch("Wizard","evoke","Evocation","off",[["Sharpened Will",{pdmg:2}],["Deep Reserves",{uses:1}],["Overchannel",{pdmg:2}],["Arcane Torrent",{uses:2,pdmg:1}]]);
+defBranch("Wizard","abjure","Abjuration","def",[["Ward Skin",{ac:1}],["Warded Blood",{ward:1}],["Shield of Will",{dr:1}],["Contingency",{unbur:1}]]);
+defBranch("Wizard","lore","Lore","sup",[["Barrow Lore",{chk:{search:2}}],["Book Learning",{chk:{oracle:3}}],["Speak with Dead",{chk:{talk:2}}],["Foresight",{luck:1}]]);
+defBranch("Ranger","archery","Archery","off",[["Steady Aim",{atk:1}],["Volley",{dmg:1}],["Ambush",{fadv:1}],["Killing Shot",{crit:1,stag:1}]]);
+defBranch("Ranger","wild","Wild","def",[["Weathered",{dr:1}],["Trailwise",{chk:{flee:2,hide:2}}],["Tracker's Eye",{chk:{search:2}}],["Hard to Kill",{unbur:1}]]);
+defBranch("Ranger","hunt","Hunt","sup",[["Patient Mark",{uses:1}],["Deep Mark",{pdmg:2}],["Forager",{pots:1}],["Last Light",{bless:1}]]);
+defBranch("Barbarian","fury","Fury","off",[["Heavy Hands",{dmg:1}],["Endless Rage",{uses:1}],["Reckless",{atk:1}],["Bloodfrenzy",{crit:1,stag:1}]]);
+defBranch("Barbarian","hide","Hide","def",[["Thick Skin",{hp:5}],["Shrug It Off",{dr:1}],["Iron Gut",{ward:1}],["Refuse to Die",{unbur:1}]]);
+defBranch("Barbarian","terror","Terror","sup",[["War Cry",{chk:{talk:2}}],["Fearless",{fear:1}],["First Charge",{fadv:1}],["Warhost",{bless:1}]]);
+defBranch("Bard","wit","Wit","off",[["Sharp Tongue",{pdmg:2}],["Encore",{uses:1}],["Riposte",{ripo:1}],["Last Word",{crit:1,stag:1}]]);
+defBranch("Bard","grace","Grace","def",[["Fancy Footwork",{ac:1}],["Exit Stage Left",{chk:{flee:3}}],["Duelist",{atk:1}],["Charmed",{luck:1}]]);
+defBranch("Bard","lore","Lore","sup",[["Old Songs",{chk:{talk:2}}],["Healing Ballad",{heal:2}],["Know the Tale",{chk:{oracle:2,search:1}}],["Anthem",{bless:1}]]);
+defBranch("Paladin","smite","Smite","off",[["Holy Edge",{dmg:1}],["Oathfire",{uses:1}],["Zealot",{fadv:1}],["Wrath",{crit:1,stag:1}]]);
+defBranch("Paladin","aegis","Aegis","def",[["Shield of Oath",{ac:1}],["Aura of Courage",{fear:1}],["Clean Body",{ward:1}],["Oath Unbroken",{unbur:1}]]);
+defBranch("Paladin","grace","Grace","sup",[["Lay on Hands",{heal:2}],["Devotion",{chk:{pray:3}}],["Provisions",{pots:1}],["Banner of Dawn",{bless:1}]]);
+// one extra root per ancestry, on top of the free seed (the existing trait)
+[["Human","Stubborn",{chk:{stand:3}}],["Dwarf","Deep Kin",{chk:{search:2},trap:1}],["Elf","Fey Mind",{fear:1}],
+ ["Halfling","Nimble Escape",{chk:{flee:2,hide:2}}],["Half-Orc","Menacing",{chk:{talk:2}}],["Gnome","Tinker's Kit",{pots:1}],
+ ["Dragonborn","Scaled Hide",{dr:1}],["Tiefling","Hellish Rebuke",{ripo:1}],["Half-Elf","Fey Blood",{fear:1}],
+ ["Triton","Deepwater Lungs",{ward:1}]].forEach(([anc,n,fx])=>{
+  ROOTS["anc."+anc.toLowerCase().replace(/[^a-z]/g,"")]={n, fx, anc, role:"anc", t:0};
+});
+// rootlets: cheap, repeatable steps toward deeper ground
+ROOTS["earth.thick"]={n:"Thick Root", fx:{hp:3}, role:"earth", t:0, max:5};
+ROOTS["earth.listen"]={n:"Listening Root", fx:{chk:{search:1}}, role:"earth", t:0, max:3};
+
+function rootAllowed(pc, id){
+  const d=ROOTS[id]; if(!d) return false;
+  if(d.cls) return d.cls===pc.cls;
+  if(d.anc) return d.anc===pc.anc;
+  return true;
+}
+const rootsOf = (pc)=> Array.isArray(pc && pc.roots) ? pc.roots : [];
+const rootsEarned = (pc)=> Math.max(0, Math.min(5, (pc.lvl|0)-1));
+const rootsLeft = (pc)=> Math.max(0, rootsEarned(pc)-rootsOf(pc).length);
+// Sum of one numeric effect key across the character's roots (flags count 1).
+function RX(pc, key){
+  let n=0;
+  for(const g of rootsOf(pc)){ const d=ROOTS[g.id]; if(d && d.fx[key]) n+=d.fx[key]; }
+  return n;
+}
+function rootChk(pc, kind){
+  let n=0;
+  for(const g of rootsOf(pc)){ const d=ROOTS[g.id]; if(d && d.fx.chk && d.fx.chk[kind]) n+=d.fx.chk[kind]; }
+  return n;
+}
+// Plain-language description, built from the very effect keys the engine reads.
+function rootText(d, cls){
+  const f=d.fx, out=[], pw=cls && CLASSES[cls] ? CLASSES[cls].power.name : "your class power";
+  if(f.hp)   out.push(`+${f.hp} maximum hit points`);
+  if(f.ac)   out.push(`+${f.ac} Armor Class`);
+  if(f.atk)  out.push(`+${f.atk} to hit with attacks`);
+  if(f.dmg)  out.push(`Weapon hits deal +${f.dmg} damage`);
+  if(f.dr)   out.push(`Blows against you land for ${f.dr} less`);
+  if(f.trap) out.push(`Traps and mishaps hurt ${f.trap} less`);
+  if(f.uses) out.push(`+${f.uses} use${f.uses>1?"s":""} of ${pw}`);
+  if(f.pdmg) out.push(`${pw} deals +${f.pdmg} damage`);
+  if(f.sneak)out.push(`Sneak Attack deals an extra 1d6`);
+  if(f.pots) out.push(`+${f.pots} potion of healing now, and at the start of every run`);
+  if(f.heal) out.push(`Potions you drink heal +${f.heal}`);
+  if(f.chk)  for(const [k,v] of Object.entries(f.chk)) out.push(`+${v} on ${CHK_LABEL[k]||k}`);
+  if(f.fadv) out.push(`Advantage on attacks in the first round of every fight`);
+  if(f.ripo) out.push(`When a monster misses you, your next attack has advantage`);
+  if(f.crit) out.push(`Weapon crits on 19 or 20`);
+  if(f.stag) out.push(`Your crits stagger for two turns, not one`);
+  if(f.fear) out.push(`You cannot be frightened`);
+  if(f.ward) out.push(`You cannot be poisoned or made to bleed`);
+  if(f.unbur)out.push(`Once per run, a blow that would drop you leaves you at 1 hp`);
+  if(f.bless)out.push(`Every fight opens with the whole party blessed (+2 to hit)`);
+  if(f.luck) out.push(`Once per fight, an attack roll of 1 is rolled again`);
+  return out;
+}
+function rootBranchName(d){
+  if(d.br) return ROOT_BRANCHES[d.br].name;
+  return d.role==="anc" ? d.anc : "Rootlets";
+}
+// What may grow in cell (r,c) for this character, given roots `list`, and why not.
+// Returns null when the cell itself can't take a root at all.
+function rootOptions(pc, r, c, list){
+  list = list || rootsOf(pc);
+  const key=r+","+c;
+  if(r<0 || r>=ROOT_ROWS || c<0 || c>=rootCols(r) || key===ROOT_SEED) return null;
+  const occ=new Set([ROOT_SEED, ...list.map(g=>g.r+","+g.c)]);
+  if(occ.has(key)) return null;
+  const from=rootNbrs(r,c).map(([y,x])=>y+","+x).find(k=>occ.has(k));
+  if(!from) return null;
+  const left=rootsEarned(pc)-list.length, band=rootBand(r);
+  const count=(id)=>list.filter(g=>g.id===id).length;
+  const inBranch=(br)=>list.filter(g=>ROOTS[g.id] && ROOTS[g.id].br===br && !ROOTS[g.id].cap).length;
+  const opts=[];
+  for(const [id,d] of Object.entries(ROOTS)){
+    if(!rootAllowed(pc,id)) continue;
+    const n=count(id);
+    if(n>=(d.max||1)) continue;
+    let why="";
+    if(band<d.t) why=`Grows only at ${ROOT_DEPTH[d.t]} or deeper`;
+    else if(d.t===1 && !list.some(g=>{ const o=ROOTS[g.id]; return o && o.br===d.br && o.t===0; }))
+      why=`Needs ${ROOTS[Object.keys(ROOTS).find(k=>ROOTS[k].br===d.br && ROOTS[k].t===0)].n} first`;
+    else if(d.cap && inBranch(d.br)<2) why=`Needs 2 ${rootBranchName(d)} roots (${inBranch(d.br)} now)`;
+    else if(d.cap && pc.lvl<5) why=`Opens at level 5`;
+    else if(left<=0) why=`No roots left to grow`;
+    opts.push({id, d, ok:!why, why});
+  }
+  return {from, opts};
+}
+// Replay a saved root list from nothing, through the same growth rules.
+// Anything that could not have been earned throws the whole list out —
+// the character still loads, just with its roots ungrown (never trusted).
+function validRoots(pc, list){
+  if(!Array.isArray(list) || !list.length) return [];
+  if(list.length>rootsEarned(pc)) return [];
+  const ok=[];
+  for(const g of list){
+    if(!g || typeof g!=="object" || typeof g.id!=="string") return [];
+    const r=g.r|0, c=g.c|0, opt=rootOptions(pc, r, c, ok);
+    if(!opt) return [];
+    const o=opt.opts.find(x=>x.id===g.id);
+    if(!o || !o.ok) return [];
+    const f=typeof g.f==="string" && rootNbrs(r,c).some(([y,x])=>y+","+x===g.f) &&
+            (g.f===ROOT_SEED || ok.some(h=>h.r+","+h.c===g.f)) ? g.f : opt.from;
+    ok.push({id:g.id, r, c, f});
+  }
+  return ok;
+}
+// Numbers that depend on roots are recomputed, never patched by hand.
+function refreshRootStats(pc, mid){
+  const before=pc.hpMax;
+  pc.hpMax=calcHpMax(pc);
+  if(mid) pc.hp=Math.max(pc.down?0:1, Math.min(pc.hpMax, pc.hp+(pc.hpMax-before)));
+  else pc.hp=Math.min(pc.hp, pc.hpMax);
+  pc.ac=calcAC(pc);
+}
+const powerUsesFor = (pc)=> CLASSES[pc.cls].power.uses + (CLASSES[pc.cls].power.uses<99 ? RX(pc,"uses") : 0);
+// Every fight starts here: the old per-fight resets, plus the roots that
+// care about a fight beginning (Sable Standard and kin bless the party).
+function fightStart(){
+  S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
+  if(S.party.some(p=>!p.isBoss && !p.down && RX(p,"bless")>0)){
+    S.party.forEach(p=>{
+      if(p.isBoss || p.down || p.offline) return;
+      p.fx=p.fx||{}; p.fx.blessed=Math.max(p.fx.blessed||0, 3);
+    });
+    out(`<span class="hit">A banner of roots and old cloth goes up over the party. Everyone is blessed.</span>`);
+  }
+}
 
 function newWorld(pc, dun){
   dun = DUNGEONS[dun] ? dun : "barrow";
@@ -1420,6 +1680,11 @@ function ensureTraitorField(state){
   if(!state.traitor) state.traitor={active:false, idx:null, secretName:null, revealed:false,
                                      awakened:false, sabotageLeft:0, aidLeft:0, strikesLeft:0};
   if(state.traitor.awakened===undefined) state.traitor.awakened=false;
+  // Saves from before the Roots: every character simply has none grown yet.
+  // Lists that are present are replayed through the growth rules, not trusted.
+  if(Array.isArray(state.party)) state.party.forEach(p=>{
+    if(p && CLASSES[p.cls]) p.roots=validRoots(p, p.roots);
+  });
   return state;
 }
 
@@ -1582,6 +1847,7 @@ const Rules = {
     // the sharp +3 a dedicated Elf or Entertainer gets in just one of them.
     if(kind==="talk"   && hasAnc(pc,"Dual Heritage")) b+=2;
     if(kind==="search" && hasAnc(pc,"Dual Heritage")) b+=2;
+    if(kind) b+=rootChk(pc, kind);                                          // roots
     const r=R.d(20), tot=r+b;
     return {t:"check", abil, dc, r, b, tot, ok:tot>=dc, crit:r===20, fumble:r===1};
   },
@@ -1589,26 +1855,30 @@ const Rules = {
     const pc=PC(a), C=CLASSES[pc.cls], ab=C.wpn.abil==="dex"?"dex":"str";
     // Frightened cancels advantage, and imposes disadvantage without it.
     const scared=hasFx(pc,"frightened");
-    const adv=!!pc.edge && !scared, dis=scared && !pc.edge;
+    // Roots: Opening Cut and kin give advantage in a fight's first round.
+    const opening = S.fight && S.round===1 && RX(pc,"fadv")>0;
+    const adv=(!!pc.edge || opening) && !scared, dis=scared && !(pc.edge || opening);
     let r=adv ? Math.max(R.d(20),R.d(20)) : dis ? Math.min(R.d(20),R.d(20)) : R.d(20);
     let lucky=false;
-    if(r===1 && hasAnc(pc,"Lucky") && pc.lucky){ r=R.d(20); lucky=true; }   // halfling
-    const b=mod(pc.ab[ab])+prof(pc)+(hasFx(pc,"blessed")?2:0), tot=r+b;
-    const hit = r===20 || (r!==1 && tot>=target.ac);
+    if(r===1 && (hasAnc(pc,"Lucky") || RX(pc,"luck")>0) && pc.lucky){ r=R.d(20); lucky=true; }   // halfling, Charmed Life
+    const b=mod(pc.ab[ab])+prof(pc)+(hasFx(pc,"blessed")?2:0)+RX(pc,"atk"), tot=r+b;
+    const crit = r===20 || (r===19 && RX(pc,"crit")>0);                     // roots widen the crit range
+    const hit = crit || (r!==1 && tot>=target.ac);
     if(!hit) return [{t:"miss", src:a, vs:"mob", r, b, tot, ac:target.ac, fumble:r===1, adv, dis, lucky}];
-    let dmg=R.parse(C.wpn.dmg)+mod(pc.ab[ab]);
-    if(r===20) dmg+=R.parse(C.wpn.dmg);
+    let dmg=R.parse(C.wpn.dmg)+mod(pc.ab[ab])+RX(pc,"dmg");
+    if(crit) dmg+=R.parse(C.wpn.dmg);
     let sneak=0;
-    if(pc.cls==="Rogue" && (S.round===1 || adv)){ sneak=R.dice(2,6); dmg+=sneak; }
+    if(pc.cls==="Rogue" && (S.round===1 || adv)){ sneak=R.dice(2+RX(pc,"sneak"),6); dmg+=sneak; }
     let bonus=0;
     if(bonusDice){ bonus=R.dice(bonusDice[0], bonusDice[1]); dmg+=bonus; }
     if(pc.rage>0) dmg+=2;                                                   // barbarian
     if(hasAnc(pc,"Draconic Might")) dmg+=1;                                 // dragonborn
     if(hasFx(pc,"weakened")) dmg-=2;
-    const out=[{t:"hit", src:a, vs:"mob", r, b, tot, dmg:Math.max(1,dmg), crit:r===20,
+    const out=[{t:"hit", src:a, vs:"mob", r, b, tot, dmg:Math.max(1,dmg), crit,
              sneak, bonus, adv, dis, lucky, wpn:C.wpn.name}];
-    // A critical hit staggers whatever survives it: it loses its next turn.
-    if(r===20 && target.hp>Math.max(1,dmg)) out.push({t:"fxon", vs:"mob", fx:"staggered", turns:1});
+    // A critical hit staggers whatever survives it: it loses its next turn
+    // (two, with a capstone root like Sunder the Dead).
+    if(crit && target.hp>Math.max(1,dmg)) out.push({t:"fxon", vs:"mob", fx:"staggered", turns:RX(pc,"stag")>0?2:1});
     return out;
   },
 
@@ -1679,6 +1949,12 @@ const Rules = {
             {t:"talkdown", src:a, auto:true, name:m.the, xp:m.xp, mAct:true}];
   },
   power(a, target){
+    const ev=Rules._power(a, target), pd=RX(PC(a),"pdmg");
+    // Roots like Burning Word add to whatever the power itself dealt.
+    if(pd>0){ const h=ev.find(e=>e.t==="hit" && e.vs==="mob" && e.src===a); if(h) h.dmg+=pd; }
+    return ev;
+  },
+  _power(a, target){
     const pc=PC(a), p=pc.power, ev=[];
     if(p.uses<=0) return [{t:"nopower", src:a, name:p.name}];
     ev.push({t:"usepower", src:a, name:p.name});
@@ -1737,6 +2013,7 @@ const Rules = {
         let dmg=R.parse(m.dmg); if(r===20) dmg*=2;
         if(hasAnc(pc,"Stonecunning")) dmg=Math.max(1,dmg-1);     // dwarf
         if(pc.rage>0) dmg=Math.max(1,dmg-2);                     // barbarian
+        if(RX(pc,"dr")>0) dmg=Math.max(1,dmg-RX(pc,"dr"));       // roots
         ev.push({t:"hit", src:"mob", vs:t, who:m.name, r, b:m.atk, tot, ac:pc.ac, dmg, crit:r===20, mAct:true, rattled});
         dealt[t]=(dealt[t]||0)+dmg;
         // A hit that leaves them standing may leave something behind.
@@ -1791,7 +2068,7 @@ const Rules = {
     ev.push({t:"xp", amt:40+15*S.at});
     return ev;
   },
-  lastStand(a){ return Rules.check(a,"con", hasAnc(PC(a),"Relentless")?6:10, true); },
+  lastStand(a){ return Rules.check(a,"con", hasAnc(PC(a),"Relentless")?6:10, true, "stand"); },
   talk(a, m){
     const c=Rules.check(a,"cha", m?13:12, skilledIn(PC(a),"persuasion")||skilledIn(PC(a),"insight"), "talk");
     if(!m) return [{t:"talkalone", src:a, roll:c}];
@@ -1824,7 +2101,7 @@ const Rules = {
     return ev;
   },
   hide(a, m){
-    const c=Rules.check(a,"dex",12, skilledIn(PC(a),"stealth"));
+    const c=Rules.check(a,"dex",12, skilledIn(PC(a),"stealth"), "hide");
     if(!m) return [{t:"hidealone", src:a, roll:c}];
     if(c.ok) return [{t:"hid", src:a, roll:c, mAct:true}];
     return [{t:"hidefail", src:a, roll:c}].concat(Rules.monsterTurn(m));
@@ -1911,6 +2188,7 @@ function apply(events){
         if(e.lucky && typeof e.src==="number") PC(e.src).lucky=false;
         break;
       case "miss": if(e.src==="mob" && S.fight && S.fight.swingVs) S.fight.swingVs.push([e.vs,0]);
+                   if(e.src==="mob" && typeof e.vs==="number" && RX(PC(e.vs),"ripo")>0 && !PC(e.vs).down) PC(e.vs).edge=true;
                    if(typeof e.src==="number"){ PC(e.src).edge=false; if(e.lucky) PC(e.src).lucky=false; } break;
       case "scrape":
         // Tiefling resilience applies here rather than at each of scrape's
@@ -1919,6 +2197,7 @@ function apply(events){
         // correct. Mirrors how Stonecunning is applied where its damage is
         // finalized rather than threaded through every caller.
         if(hasAnc(PC(e.vs),"Infernal Resilience")) e.dmg=Math.max(1,e.dmg-2);
+        if(RX(PC(e.vs),"trap")>0) e.dmg=Math.max(1,e.dmg-RX(PC(e.vs),"trap"));
         hurt(e.vs, e.dmg);
         break;
       case "heal": { const p=PC(e.vs); p.hp=Math.min(p.hpMax, p.hp+e.amt);
@@ -1927,6 +2206,9 @@ function apply(events){
       case "fxon": {
         const o = e.vs==="mob" ? S.fight : PC(e.vs);
         if(!o || (e.vs!=="mob" && o.down)) { e.skip=true; break; }
+        // Roots that make a character immune: Hold the Line, Clean Blood and kin.
+        if(e.vs!=="mob" && ((e.fx==="frightened" && RX(o,"fear")>0) ||
+           ((e.fx==="poisoned"||e.fx==="bleeding") && RX(o,"ward")>0))){ e.skip=true; e.resisted=true; break; }
         o.fx=o.fx||{};
         e.fresh=!(o.fx[e.fx]>0);
         o.fx[e.fx]=Math.max(o.fx[e.fx]||0, e.turns);
@@ -1957,7 +2239,7 @@ function apply(events){
       case "rename": PC(e.vs).name=e.name; break;
       case "avatar": PC(e.vs).av={...PC(e.vs).av, em:e.em, col:e.col}; break;
       case "usepower": PC(e.src).power.uses--; break;
-      case "potion": { const p=PC(e.src); p.potions--; p.hp=Math.min(p.hpMax,p.hp+e.amt);
+      case "potion": { const p=PC(e.src); p.potions--; e.amt+=RX(p,"heal"); p.hp=Math.min(p.hpMax,p.hp+e.amt);
                        if(p.fx){ e.cured=["poisoned","bleeding"].filter(id=>p.fx[id]>0);
                                  e.cured.forEach(id=>delete p.fx[id]); } break; }
       case "findpotion": PC(e.vs).potions++; break;
@@ -1974,6 +2256,23 @@ function apply(events){
       case "unlocked": { const rm=S.map[S.at]; if(rm.lock){ rm.lock.opened=true; rm.lock.by=e.src; } break; }
       case "itemused": { const p=PC(e.src); const i=p.inv.indexOf(e.item); if(i>=0) p.inv.splice(i,1); break; }
       case "move": S.at=e.to; break;
+      case "grow": {
+        const p=PC(e.vs), d=ROOTS[e.id];
+        p.roots=[...rootsOf(p), {id:e.id, r:e.r, c:e.c, f:e.f}];
+        if(d.fx.pots) p.potions+=d.fx.pots;
+        if(d.fx.uses && p.power.uses<99) p.power.uses+=d.fx.uses;
+        refreshRootStats(p, true);
+        e.name=d.n;
+        break;
+      }
+      case "uproot": {
+        const p=PC(e.vs);
+        p.potions=Math.max(0, p.potions-RX(p,"pots"));
+        if(p.power.uses<99) p.power.uses=Math.max(0, p.power.uses-RX(p,"uses"));
+        p.roots=[]; p.uprooted=true;
+        refreshRootStats(p, false);
+        break;
+      }
       case "asi": {
         const p=PC(e.vs);
         p.ab[e.ab]=Math.min(20, p.ab[e.ab]+1);
@@ -2028,6 +2327,12 @@ function apply(events){
 
 function hurt(idx, dmg){
   const p=PC(idx);
+  // Unburied and kin: once per run, the blow that would drop you doesn't.
+  if(p.hp-dmg<=0 && p.hp>0 && RX(p,"unbur")>0 && !p.unburUsed){
+    p.unburUsed=true; p.hp=1;
+    out(`<span class="hit">${escHtml(p.name)} should be down. The roots will not let go. (1 hp)</span>`);
+    return;
+  }
   p.hp=Math.max(0,p.hp-dmg);
   if(p.hp===0){ p.down=true; p.fx={}; }
 }
@@ -2039,8 +2344,9 @@ function levelUp(pc, e, i){
     pc.lvl++;
     const before=pc.hpMax;
     pc.hpMax=calcHpMax(pc); pc.hp+=pc.hpMax-before;
-    pc.power.uses=CLASSES[pc.cls].power.uses;
+    pc.power.uses=powerUsesFor(pc);
     pc.asi=(pc.asi||0)+ASI_PER_LEVEL;          // ability points to spend
+    if(rootsLeft(pc)>0 && !pc.isBoss) e.levels=(e.levels||[]).concat(`${pc.name} has a root to grow (open the Roots tab)`);
     if(i===S.me) e.leveled=pc.lvl;
     e.levels=(e.levels||[]).concat(`${pc.name} is now level ${pc.lvl} (+${ASI_PER_LEVEL} ability points)`);
   }
@@ -2088,6 +2394,7 @@ const Narrator = {
       case "nopower": return `<span class="sys">${N.nm(e.src)} reaches for ${e.name} and finds nothing left.</span>`;
       case "note": return e.text;
       case "fxon": {
+        if(e.resisted) return `<span class="hit">${escHtml(PC(e.vs).name)} shrugs it off. The roots hold.</span>`;
         if(e.skip) return null;
         const st=STATUS[e.fx];
         if(e.vs==="mob") return `<span class="hit">${S.fight?S.fight.the:"It"} is ${st.name.toLowerCase()} — it will lose its next turn.</span>`;
@@ -2124,6 +2431,8 @@ const Narrator = {
       case "dmwander": return null;
       case "stunlost": return `<span class="hurt">💫 ${escHtml(PC(e.src).name)} is stunned, and the turn goes by without them.</span>`;
       case "asi": return `<span class="hit">${escHtml(PC(e.vs).name)}'s ${e.ab.toUpperCase()} rises to <b>${e.to}</b>.</span>`;
+      case "grow": return `<span class="hit">${escHtml(PC(e.vs).name)}'s roots reach into ${ROOT_DEPTH[rootBand(e.r)].toLowerCase()}: <b>${escHtml(e.name)}</b>.</span>`;
+      case "uproot": return `<span class="sys">${escHtml(PC(e.vs).name)} pulls every root back up. They can be grown again, differently.</span>`;
       case "taunt": return `<span class="taunt">🎭 ${escHtml(PC(e.src).name)}: <b>${e.text}</b></span>`;
       case "searched":
         return e.auto
@@ -3374,7 +3683,7 @@ async dmTurn(){
   if(w){
     const m=spawn(w.key);
     S.fight={...m}; S.round=1; S.acted=[]; S.active=conscious()[0]??0;
-    S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
+    fightStart();
     out(`<span class="hurt">${m.the} — ${m.fl}.</span>`);
   }
   sync(); G.choices(); G.finish();
@@ -3403,7 +3712,7 @@ describeRoom(first){
              for one more trick each.</span>`);
     }
     S.fight={...m}; S.round=1; S.acted=[]; S.active=conscious()[0]??0;
-    S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
+    fightStart();
     out(`<span class="hurt">${m.the} is here — ${m.fl}. It has seen you.</span>`);
   } else {
     out(`<span class="sys">You hear ${R.pick(DUNGEONS[S.dun].sound||T.sound)}.</span>`);
@@ -3496,6 +3805,31 @@ async perform(a, action, arg, target){
   // skips the busy lock, the turn order and the game-over check. Before, it
   // was silently dropped while a turn was still settling (AI narration, the
   // AI DM, another player's move) and on the victory/defeat screen.
+  // Growing (or uprooting) roots is off the turn cycle, exactly like ability
+  // points: any time, mid-fight included, never costs an action. The host
+  // re-checks the move against the same growth rules a guest's screen used.
+  if(S && (action==="grow" || action==="uproot")){
+    const pc=PC(a);
+    if(!pc || pc.isBoss) return;
+    let ev;
+    if(action==="grow"){
+      const t=(target && typeof target==="object") ? target : {};
+      const r=t.r|0, c=t.c|0, id=String(t.id||"");
+      const opt=rootOptions(pc, r, c), o=opt && opt.opts.find(x=>x.id===id);
+      if(!o || !o.ok) return;
+      ev=[{t:"grow", vs:a, id, r, c, f:opt.from}];
+    } else {
+      if(S.fight || pc.uprooted || !rootsOf(pc).length) return;
+      ev=[{t:"uproot", vs:a}];
+    }
+    const own = Net.mode==="host" && !BUF;
+    if(own) BUF=[];
+    apply(ev);
+    const l=Narrator.line(ev[0]); if(l) out(l);
+    sync(); G.choices();
+    if(own) G.finish();
+    return;
+  }
   if(S && action==="asi"){
     const pc=PC(a), k=target;
     if(!pc || !ABILS.includes(k) || (pc.asi||0)<=0 || pc.ab[k]>=20 || pc.isBoss) return;
@@ -3546,7 +3880,7 @@ async perform(a, action, arg, target){
   // Stunned: whatever was attempted, this turn is lost — and spent, which
   // is what clears it. Free actions (questions, sheet, ability points) and
   // the traitor's secret moves are unaffected.
-  const STUN_FREE=["asi","traitorTurn","traitorSabotage","traitorAid","darkstrike"];
+  const STUN_FREE=["asi","grow","uproot","traitorTurn","traitorSabotage","traitorAid","darkstrike"];
   if(S.fight && hasFx(PC(a),"stunned") && !FREEBIES.includes(action) && !STUN_FREE.includes(action)){
     ev=[{t:"stunlost", src:a}, {t:"fxoff", vs:a, fx:"stunned"}];
     spent=true; action="__stunned";
@@ -3801,14 +4135,14 @@ async resolve(a, ev, spent){
   if(ev.some(e=>e.t==="mimic") && !S.fight){
     const m=spawn("mimic");
     S.fight={...m}; S.round=1; S.acted=[]; S.active=conscious()[0]??0;
-    S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
+    fightStart();
     out(`<span class="hurt">${m.the} — ${m.fl}.</span>`);
   }
 
   if(ev.some(e=>e.t==="wandering"||e.t==="noise") && !S.fight){
     const m=spawn(rollMob(S.at)||"rat");
     S.fight={...m}; S.round=1; S.acted=[]; S.active=conscious()[0]??0;
-    S.party.forEach(p=>{ p.lucky=true; p.rage=0; });
+    fightStart();
     out(`<span class="hurt">Something found you. ${m.the} — ${m.fl}.</span>`);
   }
 
@@ -4040,6 +4374,8 @@ choices(){
 
   // Unspent level-up points — shown whether or not it's your turn, since
   // spending them costs no action.
+  if(rootsLeft(me)>0 && !S.flags.dead && !me.isBoss)
+    add(`<b>Grow a root</b> <span style="color:var(--gold)">(${rootsLeft(me)} to grow)</span>`, ()=>G.tab("roots"));
   if((me.asi||0)>0 && !S.flags.dead && !me.isBoss)
     add(`<b>⬆ Improve abilities</b> <span style="color:var(--gold)">(${me.asi} point${me.asi===1?"":"s"})</span>`, ()=>G.asiPicker());
 
@@ -4359,6 +4695,162 @@ help(){
 },
 
 /* ---- mobile drawer ---- */
+/* ---- hamburger menu ---- */
+menu(force){
+  const m=document.getElementById("menu"), b=document.getElementById("menubtn");
+  const open = force!==undefined ? force : m.hidden;
+  m.hidden=!open; b.setAttribute("aria-expanded", open?"true":"false");
+  if(open && !G._menuWired){
+    G._menuWired=true;
+    document.addEventListener("click", e=>{
+      if(!m.hidden && !m.contains(e.target) && e.target!==b) G.menu(false);
+    });
+    document.addEventListener("keydown", e=>{ if(e.key==="Escape" && !m.hidden){ G.menu(false); b.focus(); } });
+  }
+},
+openSheet(){
+  if(!S) return;
+  if(window.matchMedia && matchMedia("(max-width:820px)").matches) G.drawer(true); else G.sheet();
+},
+
+/* ---- tabs: Adventure | Roots. Viewing never costs a turn. ---- */
+view:"adv",
+tab(v){
+  G.view = v==="roots" && S ? "roots" : "adv";
+  const roots=G.view==="roots";
+  document.getElementById("rootsview").hidden=!roots;
+  document.getElementById("log").hidden=roots;
+  document.getElementById("ctl").hidden=roots;
+  [["tabadv",!roots],["tabroots",roots]].forEach(([id,on])=>{
+    const t=document.getElementById(id); t.classList.toggle("on",on); t.setAttribute("aria-selected",on?"true":"false");
+  });
+  if(roots){ G.rsel=null; G.renderRoots(); }
+  else focusTxt();
+},
+
+/* ---- the Roots view ---- */
+rsel:null,
+rootSel(r,c){ G.rsel={r,c}; G._uprootArm=false; G.renderRoots(); },
+grow(id,r,c){
+  G.rsel={r,c};
+  G.act("grow", null, {id, r, c});
+},
+uproot(){
+  if(!G._uprootArm){ G._uprootArm=true; G.renderRoots(); return; }
+  G._uprootArm=false; G.rsel=null;
+  G.act("uproot");
+},
+renderRoots(){
+  const el=document.getElementById("rootsview");
+  if(!el || !S || !S.party) return;
+  const me=ME(), list=rootsOf(me), left=rootsLeft(me), earned=rootsEarned(me);
+  const X=(r,c)=>(r%2?102:58)+c*88, Y=(r)=>56+r*112;
+  const occ={}; occ[ROOT_SEED]={seed:true, r:0, c:4};
+  list.forEach(g=>occ[g.r+","+g.c]=g);
+  const buds={};
+  Object.values(occ).forEach(g=>rootNbrs(g.r,g.c).forEach(([y,x])=>{
+    const k=y+","+x; if(!occ[k] && !buds[k]) buds[k]={r:y, c:x};
+  }));
+  // default selection: the first bud worth growing, else the seed
+  if(!G.rsel || (!occ[G.rsel.r+","+G.rsel.c] && !buds[G.rsel.r+","+G.rsel.c])){
+    const first=left>0 && Object.values(buds).sort((a,b)=>b.r-a.r || a.c-b.c)[0];
+    G.rsel=first ? {r:first.r, c:first.c} : {r:0, c:4};
+  }
+  const selKey=G.rsel.r+","+G.rsel.c;
+  const A=ANCESTRIES[me.anc];
+  const info=(g)=> g.seed ? {n:A?A.trait:"Seed", role:"anc", lines:[A?A.tdesc:""], branch:me.anc||"Seed", seed:true}
+                          : (()=>{ const d=ROOTS[g.id]; return {n:d.n, role:d.role, lines:rootText(d, me.cls), branch:rootBranchName(d), cap:d.cap}; })();
+  const ICON={off:"M7 17 L17 7 M13 7 H17 V11 M9 13 L11 15",
+              def:"M12 5 L17 7 V12 C17 15 15 17 12 18 C9 17 7 15 7 12 V7 Z",
+              sup:"M8 18 V6 M8 7 H16 L14 10 L16 13 H8",
+              anc:"M5 17 L10 9 L13 13 L15 10 L19 17 Z",
+              earth:"M12 6 V12 M12 12 L8 17 M12 12 L16 17 M12 12 V18"};
+  const lbl=(t,x,y)=>{
+    const w=String(t).split(" "), lines=[];
+    w.forEach(x=>{ const L=lines.length-1; if(L>=0 && (lines[L]+" "+x).length<=12) lines[L]+=" "+x; else lines.push(x); });
+    return `<text x="${x}" y="${y}" class="rlbl">${lines.slice(0,2).map((l,i)=>`<tspan x="${x}" dy="${i?14:0}">${escHtml(l)}</tspan>`).join("")}</text>`;
+  };
+  let g="";
+  // depth bands
+  g+=`<rect x="0" y="0" width="820" height="168" fill="#1b150f"/>
+      <rect x="0" y="168" width="820" height="224" fill="#17110c"/>
+      <rect x="0" y="392" width="820" height="290" fill="#110c08"/>
+      <path d="M0 168 H820 M0 392 H820" stroke="#3a3026" stroke-dasharray="3 6"/>
+      <text x="10" y="18" class="rband">SURFACE</text><text x="10" y="186" class="rband">DEPTH</text>
+      <text x="10" y="410" class="rband" fill="#d0675a">THE DEEP</text>`;
+  // empty soil
+  for(let r=0;r<ROOT_ROWS;r++) for(let c=0;c<rootCols(r);c++){
+    const k=r+","+c; if(!occ[k] && !buds[k]) g+=`<circle cx="${X(r,c)}" cy="${Y(r)}" r="3" fill="#3a3026"/>`;
+  }
+  // the roots themselves: each from the cell it grew from
+  list.forEach(n=>{
+    const [fr,fc]=n.f.split(",").map(Number), x1=X(fr,fc), y1=Y(fr), x2=X(n.r,n.c), y2=Y(n.r);
+    const d = y1===y2 ? `M${x1} ${y1} C${x1} ${y1+34},${x2} ${y2+34},${x2} ${y2}`
+                      : `M${x1} ${y1} C${x1} ${(y1+y2)/2},${x2} ${(y1+y2)/2},${x2} ${y2}`;
+    g+=`<path d="${d}" fill="none" stroke="${ROLE_COLOR[ROOTS[n.id].role]}" stroke-width="4" stroke-linecap="round" opacity=".85"/>`;
+  });
+  // buds
+  Object.values(buds).forEach(b=>{
+    const k=b.r+","+b.c, sel=k===selKey, x=X(b.r,b.c), y=Y(b.r);
+    g+=`<g class="rnode bud${left>0?" live":""}${sel?" sel":""}" tabindex="0" role="button" data-rc="${k}"
+          aria-label="Grow a root here, ${ROOT_DEPTH[rootBand(b.r)]}" onclick="G.rootSel(${b.r},${b.c})">
+        <circle cx="${x}" cy="${y}" r="15" fill="#120e0a" stroke="${left>0?"#c9a227":"#4a3d2c"}" stroke-width="2" stroke-dasharray="4 3"/>
+        <path d="M${x-6} ${y} H${x+6} M${x} ${y-6} V${y+6}" stroke="${left>0?"#c9a227":"#6b5f4f"}" stroke-width="2.4" stroke-linecap="round"/></g>`;
+  });
+  // grown roots
+  Object.entries(occ).forEach(([k,n])=>{
+    const i=info(n), col=ROLE_COLOR[i.role], x=X(n.r,n.c), y=Y(n.r);
+    const rad=i.seed?30:i.cap?28:i.role==="earth"?18:23, s=rad*0.07;
+    g+=`<g class="rnode${k===selKey?" sel":""}" tabindex="0" role="button" data-rc="${k}" aria-label="${escAttr(i.n)}" onclick="G.rootSel(${n.r},${n.c})">
+        <circle cx="${x}" cy="${y}" r="${rad}" fill="${col}33" stroke="${col}" stroke-width="${i.cap?3.5:2}"/>
+        <path d="${ICON[i.cap?"sup":i.role]}" transform="translate(${x-12*s} ${y-12*s}) scale(${s})" fill="none" stroke="${col}" stroke-width="${2/s}" stroke-linecap="round" stroke-linejoin="round"/>
+        ${lbl(i.n, x, y+rad+15)}</g>`;
+  });
+
+  // side panel: either what can grow in the chosen bud, or the chosen root
+  let panel="";
+  if(buds[selKey]){
+    const opt=rootOptions(me, G.rsel.r, G.rsel.c);
+    const opts=(opt?opt.opts:[]).sort((a,b)=>(b.ok-a.ok) || (a.d.t-b.d.t));
+    const fromG=occ[opt?opt.from:ROOT_SEED], fromN=fromG ? info(fromG).n : "";
+    panel=`<div class="rkick">GROW A ROOT</div>
+      <h3>${ROOT_DEPTH[rootBand(G.rsel.r)]}</h3>
+      <p class="dim">Growing from ${escHtml(fromN)} · ${left?`${left} root${left===1?"":"s"} to grow`:`no roots to grow${me.lvl<6?` until level ${me.lvl+1}`:""}`}</p>
+      <div class="ropts">${opts.map(o=>`<button class="ropt" ${o.ok?"":"disabled"} onclick="G.grow('${o.id}',${G.rsel.r},${G.rsel.c})">
+          <i style="background:${ROLE_COLOR[o.d.role]}"></i><span><b>${escHtml(o.d.n)}</b> <s>${escHtml(rootBranchName(o.d))}${o.d.max?" · repeatable":""}${o.d.cap?" · capstone":""}</s>
+          <em>${escHtml(rootText(o.d, me.cls).join(". "))}.</em>${o.why?`<u>${escHtml(o.why)}</u>`:""}</span></button>`).join("")}</div>`;
+  } else {
+    const n=occ[selKey], i=info(n);
+    const fromN = n.seed ? "" : (()=>{ const f=occ[n.f]; return f ? info(f).n : ""; })();
+    panel=`<div class="rkick" style="color:${ROLE_COLOR[i.role]}">${escHtml(String(i.branch).toUpperCase())} · ${ROOT_DEPTH[rootBand(n.r)]}</div>
+      <h3>${escHtml(i.n)}</h3>
+      <p style="color:var(--green)">${i.seed?"Seed root · yours since birth, never costs a root":`Grown from ${escHtml(fromN)}`}</p>
+      <ul class="rfx">${i.lines.map(l=>`<li>${escHtml(l)}</li>`).join("")}</ul>
+      <p class="dim">${left?"Tap a glowing bud to grow a new root next to any root you have.":"Every root you earn grows from one you already have, in any direction."}</p>`;
+  }
+  const canUproot = list.length && !S.fight && !me.uprooted;
+  el.innerHTML=`<div class="rhead">
+      <span><b>${escHtml(me.name)}'s roots</b> <span class="dim">Level ${me.lvl}: ${earned} earned, ${list.length} grown,</span>
+        <b style="color:${left?"var(--gold)":"var(--dim)"}">${left} to grow</b></span>
+      <span class="sp"></span>
+      ${canUproot?`<button class="tb" onclick="G.uproot()">${G._uprootArm?"Tap again to uproot all":"Uproot all (once per run)"}</button>`:""}
+      <button class="tb hot" onclick="G.tab('adv')">Back to the delve</button>
+    </div>
+    <div class="rbody">
+      <svg class="rgrid" viewBox="0 0 820 682" role="group" aria-label="Root grid">${g}</svg>
+      <aside class="rpanel" aria-live="polite">${panel}</aside>
+    </div>
+    <p class="rhelp dim">Grow from any root you have, in any direction. Deeper ground holds stronger roots: tier one roots grow at Depth, capstones only in The Deep (and from level 5). Rootlets are cheap steps to get there.</p>`;
+  if(!el._wired){
+    el._wired=true;
+    el.addEventListener("keydown", e=>{
+      const t=e.target.closest && e.target.closest("[data-rc]");
+      if(t && (e.key==="Enter" || e.key===" ")){ e.preventDefault(); const [r,c]=t.dataset.rc.split(",").map(Number); G.rootSel(r,c);
+        const again=el.querySelector(`[data-rc="${r},${c}"]`); if(again) again.focus(); }
+    });
+  }
+},
+
 drawer(force){
   const s=document.getElementById("side"), sc=document.getElementById("scrim");
   const open = force!==undefined ? force : !s.classList.contains("open");
@@ -4482,7 +4974,7 @@ async join(){
                 av:me.av, pid:Net.pid(),
                 // a loaded favorite brings its level with it — the host
                 // re-validates every number (applyProgress) before using it
-                prog:{lvl:me.lvl, xp:me.xp, ab:me.ab, asi:me.asi||0}, favId:me.favId||null});
+                prog:{lvl:me.lvl, xp:me.xp, ab:me.ab, asi:me.asi||0, roots:rootsOf(me)}, favId:me.favId||null});
       });
       c.on("data", (m)=>Net.guestReceive(m));
       c.on("close", ()=>{
@@ -4742,7 +5234,7 @@ function sync(){
   Favorites.autoUpdate(me);
   // Not a favorite yet? A level-up is the moment worth keeping — say so once.
   if(G._seenLvl && G._seenLvl.name===me.name && me.lvl>G._seenLvl.lvl && !(me.favId && Favorites.get(me.favId)))
-    out(`<span class="sys">★ ${escHtml(me.name)} reached level ${me.lvl}. Press <b>Save</b> to keep this character and its stats for future games.</span>`, true);
+    out(`<span class="sys">★ ${escHtml(me.name)} reached level ${me.lvl}. Open the ☰ menu and press <b>Save</b> to keep this character, its stats and its roots for future games.</span>`, true);
   G._seenLvl={name:me.name, lvl:me.lvl};
   Battle.update();
   document.getElementById("ac").textContent=me.ac;
@@ -4757,6 +5249,12 @@ function sync(){
   document.getElementById("quest").innerHTML=S.journal.map(q=>`<div class="item">${q}</div>`).join("")
     + `<div class="item"><em>Depth ${S.at+1} of ${S.map.length}</em></div>`
     + (S.flags.crown?`<div class="item" style="color:var(--gold)">${DUNGEONS[S.dun].prize} is carried.</div>`:"");
+
+  const left=me.isBoss ? 0 : rootsLeft(me);
+  const badge=document.getElementById("rootbadge"), mr=document.getElementById("mroots");
+  if(badge){ badge.textContent=left; badge.hidden=!left; }
+  if(mr) mr.textContent = left ? `${left} to grow` : "";
+  if(G.view==="roots") G.renderRoots();
 
   autosave();
 }
