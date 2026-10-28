@@ -223,12 +223,20 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
 .ropt{display:flex; gap:10px; align-items:flex-start; text-align:left; background:#1b150f; color:var(--ink);
   border:1px solid var(--line); border-radius:6px; padding:9px 11px; cursor:pointer; min-height:44px; font-size:14px}
 .ropt:hover:not(:disabled){border-color:var(--gold)}
-.ropt:disabled{opacity:.55; cursor:not-allowed}
+.ropt:disabled{cursor:default}
+.ropt.later{background:transparent; border-style:dashed}
+.ropt.later b{color:#c9bba0}
+.ropt.later i{opacity:.6}
+.rgrp{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); margin:8px 0 1px}
+.rgrp:first-child{margin-top:0}
+.rnote{background:#241d16; border:1px solid #5c4a24; border-radius:6px; padding:8px 10px; color:var(--ink)}
+.rnote.quiet{border-color:var(--line); color:var(--dim)}
+.rlock{width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linejoin:round; vertical-align:-1px; margin-right:5px}
 .ropt i{flex:none; width:10px; height:10px; transform:rotate(45deg); margin-top:6px}
 .ropt span{display:flex; flex-direction:column; gap:1px}
 .ropt s{text-decoration:none; color:var(--dim); font-size:12px}
 .ropt em{font-style:normal; color:#c9bba0; font-size:13px; line-height:1.4}
-.ropt u{text-decoration:none; color:#d3a59c; font-size:12px}
+.ropt u{text-decoration:none; color:var(--dim); font-size:12px; margin-top:2px}
 .rhelp{font-size:13px; margin:12px 0 0}
 .rband{font-size:11px; letter-spacing:.16em; fill:var(--dim)}
 .rlbl{font-size:12px; fill:var(--ink); text-anchor:middle; font-weight:600; pointer-events:none}
@@ -4811,14 +4819,28 @@ renderRoots(){
   let panel="";
   if(buds[selKey]){
     const opt=rootOptions(me, G.rsel.r, G.rsel.c);
-    const opts=(opt?opt.opts:[]).sort((a,b)=>(b.ok-a.ok) || (a.d.t-b.d.t));
+    const all=(opt?opt.opts:[]).sort((a,b)=>a.d.t-b.d.t);
     const fromG=occ[opt?opt.from:ROOT_SEED], fromN=fromG ? info(fromG).n : "";
+    // With nothing to spend, every option is a preview: one notice at the top
+    // instead of the same "no roots left" under every row. Otherwise, options
+    // that can't grow here yet sit in their own "Not yet" group, styled as a
+    // lock rather than faded out, so they read as a goal and not as an error.
+    const reason = (o)=> o.why==="No roots left to grow" ? "" : o.why;
+    const ready = left ? all.filter(o=>o.ok) : all.filter(o=>!reason(o));
+    const later = all.filter(o=>!ready.includes(o));
+    const LOCK=`<svg class="rlock" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11 V8 A5 5 0 0 1 17 8 V11 M5 11 H19 V20 H5 Z"/></svg>`;
+    const row=(o, live)=>`<button class="ropt${live?"":" later"}" ${live?"":"disabled"} onclick="G.grow('${o.id}',${G.rsel.r},${G.rsel.c})">
+          <i style="background:${ROLE_COLOR[o.d.role]}"></i><span><b>${escHtml(o.d.n)}</b> <s>${escHtml(rootBranchName(o.d))}${o.d.max?" · repeatable":""}${o.d.cap?" · capstone":""}</s>
+          <em>${escHtml(rootText(o.d, me.cls).join(". "))}.</em>${!live && reason(o)?`<u>${LOCK}${escHtml(reason(o))}</u>`:""}</span></button>`;
     panel=`<div class="rkick">GROW A ROOT</div>
       <h3>${ROOT_DEPTH[rootBand(G.rsel.r)]}</h3>
-      <p class="dim">Growing from ${escHtml(fromN)} · ${left?`${left} root${left===1?"":"s"} to grow`:`no roots to grow${me.lvl<6?` until level ${me.lvl+1}`:""}`}</p>
-      <div class="ropts">${opts.map(o=>`<button class="ropt" ${o.ok?"":"disabled"} onclick="G.grow('${o.id}',${G.rsel.r},${G.rsel.c})">
-          <i style="background:${ROLE_COLOR[o.d.role]}"></i><span><b>${escHtml(o.d.n)}</b> <s>${escHtml(rootBranchName(o.d))}${o.d.max?" · repeatable":""}${o.d.cap?" · capstone":""}</s>
-          <em>${escHtml(rootText(o.d, me.cls).join(". "))}.</em>${o.why?`<u>${escHtml(o.why)}</u>`:""}</span></button>`).join("")}</div>`;
+      <p class="dim">Growing from ${escHtml(fromN)}</p>
+      ${left ? `<p class="rnote">${left} root${left===1?"":"s"} to grow. Pick one below.</p>`
+             : `<p class="rnote quiet">No roots to grow right now${me.lvl<6?`. Your next one comes at level ${me.lvl+1}`:""}. Here is what could grow in this spot.</p>`}
+      <div class="ropts">
+        ${ready.length?`<div class="rgrp">${left?"Ready to grow":"Could grow here"}</div>${ready.map(o=>row(o, !!left)).join("")}`:""}
+        ${later.length?`<div class="rgrp">Not yet</div>${later.map(o=>row(o, false)).join("")}`:""}
+      </div>`;
   } else {
     const n=occ[selKey], i=info(n);
     const fromN = n.seed ? "" : (()=>{ const f=occ[n.f]; return f ? info(f).n : ""; })();
