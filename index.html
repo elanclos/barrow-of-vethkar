@@ -220,6 +220,9 @@ h2.scene{font-size:19px; color:var(--gold); margin:22px 0 10px; letter-spacing:.
 .rkick{font-size:11px; letter-spacing:.16em; color:var(--gold)}
 .rfx{margin:8px 0 12px; padding-left:18px; font-size:15px; line-height:1.5}
 .ropts{display:flex; flex-direction:column; gap:7px; max-height:460px; overflow-y:auto; padding-right:2px}
+/* rows keep their natural height inside the scrolling list; without this the
+   column flexbox squeezed every row to 44px and the text spilled over the next */
+.ropts > *{flex:none}
 .ropt{display:flex; gap:10px; align-items:flex-start; text-align:left; background:#1b150f; color:var(--ink);
   border:1px solid var(--line); border-radius:6px; padding:9px 11px; cursor:pointer; min-height:44px; font-size:14px}
 .ropt:hover:not(:disabled){border-color:var(--gold)}
